@@ -9,7 +9,7 @@ This branch is for testing out the rocket webserver/framework.
 
 ### Running example
 ```sh
-
+git clone <REPO URL>
 git switch rocket
 cargo run
 
