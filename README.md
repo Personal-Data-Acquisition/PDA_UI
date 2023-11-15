@@ -15,5 +15,15 @@ cargo run
 
 ```
 
+## actix_web branch
 
+This branch is for testing out Actix-Web
+
+
+### Running example
+```sh
+git clone <REPO URL>
+git switch actix_web
+cargo run
+```
 
