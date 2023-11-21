@@ -2,28 +2,12 @@
 The User Interface for the PDA project
 
 
-## Rocket Branch
+## Framework Branches
+There are branches for testing out the Rocket, Actix-Web and Tide webservers/frameworks.
 
-This branch is for testing out the rocket webserver/framework.
-
-
-### Running example
+### Running examples
 ```sh
 git clone <REPO URL>
-git switch rocket
-cargo run
-
-```
-
-## actix_web branch
-
-This branch is for testing out Actix-Web
-
-
-### Running example
-```sh
-git clone <REPO URL>
-git switch actix_web
+git switch <rocket, actix_web, or tide>
 cargo run
 ```
-
