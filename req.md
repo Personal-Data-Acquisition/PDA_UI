@@ -16,6 +16,9 @@
 * Visual plot element for data
 * Plot data in a clear and readable way
 
+### Header
+* Switch between view data, download data, configure sensors
+
 ## Settings and Configuration
 * Configure sensor sensitivity
 * Turn sensors off and on
