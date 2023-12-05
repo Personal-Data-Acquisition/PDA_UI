@@ -2,6 +2,8 @@ use egui::*;
 
 use egui_plot::{Legend, Line, Plot, PlotPoints};
 
+const TITLE: &str = "egui ex";
+
 trait View {
     fn ui(&mut self, ui: &mut egui::Ui);
 }
@@ -11,8 +13,6 @@ trait Demo {
 
     fn name(&self) -> &'static str;
 }
-
-const TITLE: &str = "egui ex";
 
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
@@ -88,39 +88,12 @@ impl Default for Panel {
 
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        //let mut plot_rect = None;
-        //egui::CentralPanel::default().show(ctx, |ui| {
-        //    ui.heading(TITLE);
-
-        //    let my_plot = Plot::new("My Plot")
-        //        .legend(Legend::default())
-        //        .height(200.0);
-
-        //    // let's create a dummy line in the plot
-        //    let graph: Vec<[f64; 2]> = vec![[0.0, 1.0], [2.0, 3.0], [3.0, 2.0]];
-        //    let inner = my_plot.show(ui, |plot_ui| {
-        //        plot_ui.line(Line::new(PlotPoints::from(graph)).name("curve"));
-        //    });
-
-        //    // Remember the position of the plot
-        //    plot_rect = Some(inner.response.rect);
-
-        //    ui.horizontal(|ui| {
-        //        if !self.is_recording {
-        //            self.is_recording = ui.button("Record").clicked();
-        //        } else {
-        //            self.is_recording = !ui.button("Stop").clicked();
-        //        }
-        //    });
-        //});
-
         let mut open = true;
-
         self.show(ctx, &mut open);
     }
 }
 
-// -----------------
+// Panels ---------------------------------------
 
 struct HomePanel {
     is_recording: bool
