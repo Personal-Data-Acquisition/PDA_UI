@@ -79,21 +79,15 @@ impl Default for HomePanel {
 
 impl HomePanel {
     fn ui(&mut self, ui: &mut Ui) {
-        ui.horizontal(|ui| {
-            ui.label("Home");
-        });
         let my_plot = Plot::new("My Plot")
             .legend(Legend::default())
             .height(200.0);
 
         // let's create a dummy line in the plot
         let graph: Vec<[f64; 2]> = vec![[0.0, 1.0], [2.0, 3.0], [3.0, 2.0]];
-        let inner = my_plot.show(ui, |plot_ui| {
+        my_plot.show(ui, |plot_ui| {
             plot_ui.line(Line::new(PlotPoints::from(graph)).name("curve"));
         });
-
-        // Remember the position of the plot
-        //plot_rect = Some(inner.response.rect);
 
         ui.horizontal(|ui| {
             if !self.is_recording {
@@ -117,7 +111,7 @@ impl LogPanel {
     fn ui(&mut self, ui: &mut Ui) {
         use egui_extras::{Column, TableBuilder};
 
-        let mut table = TableBuilder::new(ui)
+        let table = TableBuilder::new(ui)
             .striped(true)
             .resizable(true)
             .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
@@ -129,10 +123,6 @@ impl LogPanel {
             //.column(Column::initial(100.0).at_least(40.0).clip(true))
             //.column(Column::remainder())
             .min_scrolled_height(0.0);
-
-        //if let Some(row_nr) = self.scroll_to_row.take() {
-        //    table = table.scroll_to_row(row_nr, None);
-        //}
 
         table
             .header(20.0, |mut header| {
@@ -177,18 +167,57 @@ impl LogPanel {
     }
 }
 
-struct ConfigPanel {}
+struct ConfigPanel {
+    temp_enabled: bool,
+    temp_sensitivity: f32,
+    accel_enabled: bool,
+    accel_sensitivity: f32,
+}
 
 impl Default for ConfigPanel {
     fn default() -> Self {
-        Self {}
+        Self {
+            temp_enabled: true,
+            temp_sensitivity: 8.0,
+            accel_enabled: true,
+            accel_sensitivity: 8.0,
+        }
     }
 }
 
 impl ConfigPanel {
     fn ui(&mut self, ui: &mut Ui) {
-        ui.horizontal(|ui| {
-            ui.label("Config");
-        });
+        egui::TopBottomPanel::top("temp_panel")
+            .show_inside(ui, |ui| {
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    ui.vertical_centered(|ui| {
+                        ui.heading("Temperature Sensor");
+                    });
+                    ui.checkbox(&mut self.temp_enabled, "Enabled");
+                    ui.add_enabled_ui(self.temp_enabled, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.add(egui::DragValue::
+                                   new(&mut self.temp_sensitivity).speed(0.1));
+                            ui.add(egui::Label::new("Sensitivity"));
+                        });
+                    });
+                });
+            });
+        egui::TopBottomPanel::top("accel_panel")
+            .show_inside(ui, |ui| {
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    ui.vertical_centered(|ui| {
+                        ui.heading("Accelerometer");
+                    });
+                    ui.checkbox(&mut self.accel_enabled, "Enabled");
+                    ui.add_enabled_ui(self.accel_enabled, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.add(egui::DragValue::
+                                   new(&mut self.accel_sensitivity).speed(0.1));
+                            ui.add(egui::Label::new("Sensitivity"));
+                        });
+                    });
+                });
+            });
     }
 }
