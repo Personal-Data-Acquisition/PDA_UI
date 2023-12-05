@@ -4,16 +4,6 @@ use egui_plot::{Legend, Line, Plot, PlotPoints};
 
 const TITLE: &str = "egui ex";
 
-trait View {
-    fn ui(&mut self, ui: &mut egui::Ui);
-}
-
-trait Demo {
-    fn show(&mut self, ctx: &egui::Context, open: &mut bool);
-
-    fn name(&self) -> &'static str;
-}
-
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
         initial_window_size: Some([400.0, 400.0].into()),
@@ -35,41 +25,28 @@ struct MyApp {
     config_panel: ConfigPanel,
 }
 
-impl Demo for MyApp {
-    fn name(&self) -> &'static str {
-        "egui ex"
-    }
+impl eframe::App for MyApp {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                ui.selectable_value(&mut self.open_panel, Panel::Home, "Home");
+                ui.selectable_value(&mut self.open_panel, Panel::Log, "Log");
+                ui.selectable_value(&mut self.open_panel, Panel::Config, "Config");
+            });
+            ui.separator();
 
-    fn show(&mut self, ctx: &Context, open: &mut bool) {
-        use View as _;
-        Window::new(self.name())
-            .open(open)
-            .default_size(vec2(400.0, 400.0))
-            .vscroll(false)
-            .show(ctx, |ui| self.ui(ui));
-    }
-}
-
-impl View for MyApp {
-    fn ui(&mut self, ui: &mut Ui) {
-        ui.horizontal(|ui| {
-            ui.selectable_value(&mut self.open_panel, Panel::Home, "Home");
-            ui.selectable_value(&mut self.open_panel, Panel::Log, "Log");
-            ui.selectable_value(&mut self.open_panel, Panel::Config, "Config");
+            match self.open_panel {
+                Panel::Home => {
+                    self.home_panel.ui(ui);
+                }
+                Panel::Log => {
+                    self.log_panel.ui(ui);
+                }
+                Panel::Config => {
+                    self.config_panel.ui(ui);
+                }
+            }
         });
-        ui.separator();
-
-        match self.open_panel {
-            Panel::Home => {
-                self.home_panel.ui(ui);
-            }
-            Panel::Log => {
-                self.log_panel.ui(ui);
-            }
-            Panel::Config => {
-                self.config_panel.ui(ui);
-            }
-        }
     }
 }
 
@@ -83,13 +60,6 @@ enum Panel {
 impl Default for Panel {
     fn default() -> Self {
         Self::Home
-    }
-}
-
-impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        let mut open = true;
-        self.show(ctx, &mut open);
     }
 }
 
