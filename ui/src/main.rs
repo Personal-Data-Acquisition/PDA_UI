@@ -145,9 +145,65 @@ impl Default for LogPanel {
 
 impl LogPanel {
     fn ui(&mut self, ui: &mut Ui) {
-        ui.horizontal(|ui| {
-            ui.label("Log");
-        });
+        use egui_extras::{Column, TableBuilder};
+
+        let mut table = TableBuilder::new(ui)
+            .striped(true)
+            .resizable(true)
+            .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+            .column(Column::auto())
+            .column(Column::auto())
+            .column(Column::auto())
+            .column(Column::auto())
+            //.column(Column::initial(100.0).range(40.0..=300.0))
+            //.column(Column::initial(100.0).at_least(40.0).clip(true))
+            //.column(Column::remainder())
+            .min_scrolled_height(0.0);
+
+        //if let Some(row_nr) = self.scroll_to_row.take() {
+        //    table = table.scroll_to_row(row_nr, None);
+        //}
+
+        table
+            .header(20.0, |mut header| {
+                header.col(|ui| {
+                    ui.strong("Row");
+                });
+                header.col(|ui| {
+                    ui.strong("Time");
+                });
+                header.col(|ui| {
+                    ui.strong("Temparature");
+                });
+                header.col(|ui| {
+                    ui.strong("Acceleration");
+                });
+            })
+            .body(|mut body| {
+                for row_index in 0..10 {
+                    let row_height = 18.0;
+                    body.row(row_height, |mut row| {
+                        row.col(|ui| {
+                            ui.label(row_index.to_string());
+                        });
+                        row.col(|ui| {
+                            ui.add(
+                                egui::Label::new("12:00:00.000").wrap(false),
+                            );
+                        });
+                        row.col(|ui| {
+                            ui.add(
+                                egui::Label::new("27.5").wrap(false),
+                            );
+                        });
+                        row.col(|ui| {
+                            ui.add(
+                                egui::Label::new("0.2").wrap(false),
+                            );
+                        });
+                    });
+                }
+            });
     }
 }
 
