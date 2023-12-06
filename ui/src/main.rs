@@ -84,9 +84,9 @@ impl HomePanel {
         let my_plot = Plot::new("My Plot")
             .legend(Legend::default())
             .height(200.0);
-        // let plot_csv = Plot::new("CSV Plot")
-        //     .legend(Legend::default())
-        //     .height(200.0);
+        let plot_csv = Plot::new("CSV Plot")
+            .legend(Legend::default())
+            .height(200.0);
 
         // let's create a dummy line in the plot
         let graph: Vec<[f64; 2]> = vec![[0.0, 1.0], [2.0, 3.0], [3.0, 2.0]];
@@ -95,7 +95,10 @@ impl HomePanel {
         });
 
         // Now create a plot from file data
-        // let graph_sensor: Vec<[f64; 2]> = vec_from_csv("sensor.csv".to_string()).unwrap();
+        let graph_sensor: Vec<[f64; 2]> = vec_from_csv("sensor.csv").unwrap();
+        plot_csv.show(ui, |plot_ui| {
+            plot_ui.line(Line::new(PlotPoints::from(graph_sensor)).name("CSV"));
+        });
 
         ui.horizontal(|ui| {
             if !self.is_recording {
@@ -107,7 +110,7 @@ impl HomePanel {
     }
 }
 
-fn vec_from_csv(path: String) -> Result<(Vec<[f64; 2]>), Box<dyn std::error::Error>> {
+fn vec_from_csv(path: &str) -> Result<Vec<[f64; 2]>, Box<dyn std::error::Error>> {
     let csv = File::open(path)?;
     let mut reader = csv::ReaderBuilder::new().has_headers(false).from_reader(csv);
     let mut vector: Vec<[f64; 2]> = vec![];
