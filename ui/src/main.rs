@@ -91,13 +91,13 @@ impl HomePanel {
         // let's create a dummy line in the plot
         let graph: Vec<[f64; 2]> = vec![[0.0, 1.0], [2.0, 3.0], [3.0, 2.0]];
         my_plot.show(ui, |plot_ui| {
-            plot_ui.line(Line::new(PlotPoints::from(graph)).name("curve"));
+            plot_ui.line(Line::new(PlotPoints::from(graph)).name("Temperature"));
         });
 
         // Now create a plot from file data
         let graph_sensor: Vec<[f64; 2]> = vec_from_csv("sensor.csv").unwrap();
         plot_csv.show(ui, |plot_ui| {
-            plot_ui.line(Line::new(PlotPoints::from(graph_sensor)).name("CSV"));
+            plot_ui.line(Line::new(PlotPoints::from(graph_sensor)).name("Acceleration"));
         });
 
         ui.horizontal(|ui| {
