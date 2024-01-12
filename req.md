@@ -15,8 +15,9 @@
 ### Data Plot
 * Visual plot element for data
 * Plot data in a clear and readable way
+* Plots for each sensor
 
-### Header
+### Toolbar
 * Switch between view data, download data, configure sensors
 
 ## Settings and Configuration
@@ -27,13 +28,13 @@
 
 ## Size and Memory Usage
 * Must be able to function on a Raspberry Pi 4
-* *(more research required)*
+* Should be within 4 GB
 
 ## Security
-* Self signed certs?
-* *(more research required)*
+* Sanitize inputs
+* Rocket TLS configuration
+    * Use self signed certs for development
 
 ## Frameworks
 * EGUI
-* Rocket?
-  * Or Tide or Actix-Web?
+* Rust Rocket
