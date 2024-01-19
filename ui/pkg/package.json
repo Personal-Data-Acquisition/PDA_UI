@@ -1,17 +1,19 @@
 {
-  "name": "hello-wasm",
+  "name": "egui-wasm",
   "collaborators": [
     "Blake <43260601+Leopard501@users.noreply.github.com>"
   ],
   "version": "0.1.0",
   "files": [
-    "hello_wasm_bg.wasm",
-    "hello_wasm.js",
-    "hello_wasm.d.ts"
+    "egui_wasm_bg.wasm",
+    "egui_wasm.js",
+    "egui_wasm_bg.js",
+    "egui_wasm.d.ts"
   ],
-  "module": "hello_wasm.js",
-  "types": "hello_wasm.d.ts",
+  "module": "egui_wasm.js",
+  "types": "egui_wasm.d.ts",
   "sideEffects": [
+    "./egui_wasm.js",
     "./snippets/*"
   ]
 }
