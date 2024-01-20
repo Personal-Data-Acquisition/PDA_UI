@@ -1,14 +1,12 @@
 use std::fs::File;
-
+use walkers::{Tiles, Map, MapMemory, Position, sources::OpenStreetMap, TilesManager};
 use egui::*;
-
 use egui_plot::{Legend, Line, Plot, PlotPoints};
 
 const TITLE: &str = "egui ex";
 
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
-        initial_window_size: Some([400.0, 400.0].into()),
         ..Default::default()
     };
 
@@ -19,12 +17,39 @@ fn main() -> Result<(), eframe::Error> {
     )
 }
 
-#[derive(Default)]
 struct MyApp {
     open_panel: Panel,
     home_panel: HomePanel,
     log_panel: LogPanel,
     config_panel: ConfigPanel,
+    tiles: Tiles,
+    map_memory: MapMemory,
+}
+
+impl Default for MyApp {
+    fn default() -> Self {
+        Self {
+            tiles: Tiles::new(OpenStreetMap, Context::default()),
+            map_memory: MapMemory::default(),
+            open_panel: Panel::default(),
+            home_panel: HomePanel::default(),
+            log_panel: LogPanel::default(),
+            config_panel: ConfigPanel::default(),
+        }
+    }
+}
+
+impl MyApp {
+    fn new(egui_ctx: Context) -> Self {
+        Self {
+            tiles: Tiles::new(OpenStreetMap, egui_ctx),
+            map_memory: MapMemory::default(),
+            open_panel: Panel::default(),
+            home_panel: HomePanel::default(),
+            log_panel: LogPanel::default(),
+            config_panel: ConfigPanel::default(),
+        }
+    }
 }
 
 impl eframe::App for MyApp {
@@ -38,8 +63,13 @@ impl eframe::App for MyApp {
             ui.separator();
 
             match self.open_panel {
-                Panel::Home => {
+                Panel::Home => {    
                     self.home_panel.ui(ui);
+                    ui.add(Map::new(
+                        Some(&mut self.tiles),
+                        &mut self.map_memory,
+                        Position::from_lon_lat(44.56203897286608, -123.28196905234289)
+                    ));
                 }
                 Panel::Log => {
                     self.log_panel.ui(ui);
@@ -80,7 +110,7 @@ impl Default for HomePanel {
 }
 
 impl HomePanel {
-    fn ui(&mut self, ui: &mut Ui) {
+    fn ui(&mut self, ui: &mut Ui,) {
         let my_plot = Plot::new("My Plot")
             .legend(Legend::default())
             .height(200.0);
