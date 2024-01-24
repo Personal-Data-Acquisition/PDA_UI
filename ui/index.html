@@ -2,18 +2,25 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>My Wasm Project</title>
+    <title>egui ex</title>
   </head>
 
   <body>
-    <script type="module">
-      // Importing WASM as a JS module requires us to call an init function provided by the default export.
-      // This is planned to be changed in the future.
-      import { default as wasm, greet } from "./pkg/egui_wasm.js";
+    <!--<script type="module">
+      import { default as wasm, main, MyApp} from "./pkg/egui_wasm.js";
 
       wasm().then((module) => {
         main();
       });
+    </script>-->
+
+    <canvas id="egui ex"></canvas>
+    <!--<script src="pkg/egui_wasm.js" type="module"></script>-->
+    <script type="module">
+        import init, { main } from "./pkg/egui_wasm.js";
+        init().then(() => {
+            main();
+        });
     </script>
   </body>
 </html>

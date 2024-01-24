@@ -5,6 +5,7 @@ use egui::*;
 use egui_plot::{Legend, Line, Plot, PlotPoints};
 
 use wasm_bindgen::prelude::*;
+use log::*;
 
 const TITLE: &str = "egui ex";
 
@@ -15,6 +16,8 @@ pub fn main() {
     //    ..Default::default()
     //};
 
+    eframe::WebLogger::init(log::LevelFilter::Debug).ok();
+
     let web_options = eframe::WebOptions::default();
 
     //eframe::run_native(
@@ -23,12 +26,14 @@ pub fn main() {
     //    Box::new(|_cc| Box::<MyApp>::default()),
     //)
 
+    let app = Box::<MyApp>::default();
+
     wasm_bindgen_futures::spawn_local(async {
         eframe::WebRunner::new()
             .start(
                 TITLE,
                 web_options,
-                Box::new(|_cc| Box::<MyApp>::default()),
+                Box::new(|cc| Box::new(MyApp::new(cc))),
             )
             .await
             .expect("failed to start eframe");
@@ -36,11 +41,18 @@ pub fn main() {
 }
 
 #[derive(Default)]
-struct MyApp {
+#[wasm_bindgen]
+pub struct MyApp {
     open_panel: Panel,
     home_panel: HomePanel,
     log_panel: LogPanel,
     config_panel: ConfigPanel,
+}
+
+impl MyApp {
+    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        Default::default()
+    }
 }
 
 impl eframe::App for MyApp {
@@ -69,7 +81,8 @@ impl eframe::App for MyApp {
 }
 
 #[derive(PartialEq, Eq)]
-enum Panel {
+#[wasm_bindgen]
+pub enum Panel {
     Home,
     Log,
     Config,
@@ -83,7 +96,8 @@ impl Default for Panel {
 
 // Panels ---------------------------------------
 
-struct HomePanel {
+#[wasm_bindgen]
+pub struct HomePanel {
     is_recording: bool
 }
 
@@ -117,7 +131,8 @@ impl HomePanel {
     }
 }
 
-struct LogPanel {}
+#[wasm_bindgen]
+pub struct LogPanel {}
 
 impl Default for LogPanel {
     fn default() -> Self {
@@ -185,7 +200,8 @@ impl LogPanel {
     }
 }
 
-struct ConfigPanel {
+#[wasm_bindgen]
+pub struct ConfigPanel {
     temp_enabled: bool,
     temp_sensitivity: f32,
     accel_enabled: bool,

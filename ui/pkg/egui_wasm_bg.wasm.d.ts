@@ -2,6 +2,10 @@
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
 export function main(): void;
+export function __wbg_myapp_free(a: number): void;
+export function __wbg_homepanel_free(a: number): void;
+export function __wbg_logpanel_free(a: number): void;
+export function __wbg_configpanel_free(a: number): void;
 export function __wbindgen_malloc(a: number, b: number): number;
 export function __wbindgen_realloc(a: number, b: number, c: number, d: number): number;
 export const __wbindgen_export_2: WebAssembly.Table;

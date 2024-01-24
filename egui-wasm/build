@@ -1,0 +1,6 @@
+#!/bin/bash
+
+if wasm-pack build -t web; then
+    rm -r ../ui/pkg
+    cp -r pkg ../ui/pkg
+fi

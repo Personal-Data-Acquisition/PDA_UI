@@ -7,13 +7,11 @@
   "files": [
     "egui_wasm_bg.wasm",
     "egui_wasm.js",
-    "egui_wasm_bg.js",
     "egui_wasm.d.ts"
   ],
   "module": "egui_wasm.js",
   "types": "egui_wasm.d.ts",
   "sideEffects": [
-    "./egui_wasm.js",
     "./snippets/*"
   ]
 }
