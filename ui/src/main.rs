@@ -1,9 +1,19 @@
-use std::fs::File;
-use walkers::{Tiles, Map, MapMemory, Position, sources::OpenStreetMap, TilesManager};
+use std::{fs::File, ptr::null};
+use walkers::{Tiles, Map, MapMemory, Position, sources::OpenStreetMap, TilesManager, HttpOptions};
 use egui::*;
 use egui_plot::{Legend, Line, Plot, PlotPoints};
+use std::collections::HashMap;
 
 const TITLE: &str = "egui ex";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Provider {
+    OpenStreetMap,
+    Geoportal,
+    MapboxStreets,
+    MapboxSatellite,
+    LocalTiles,
+}
 
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
@@ -13,7 +23,7 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         TITLE,
         options,
-        Box::new(|_cc| Box::<MyApp>::default()),
+        Box::new(|cc| Box::new(MyApp::new(cc.egui_ctx.clone()))),
     )
 }
 
@@ -22,19 +32,20 @@ struct MyApp {
     home_panel: HomePanel,
     log_panel: LogPanel,
     config_panel: ConfigPanel,
-    tiles: Tiles,
     map_memory: MapMemory,
+    providers: HashMap<Provider, Box<dyn TilesManager + Send>>,
 }
 
 impl Default for MyApp {
     fn default() -> Self {
         Self {
-            tiles: Tiles::new(OpenStreetMap, Context::default()),
+            // tiles: Tiles::new(OpenStreetMap, Context::default()),
             map_memory: MapMemory::default(),
             open_panel: Panel::default(),
             home_panel: HomePanel::default(),
             log_panel: LogPanel::default(),
             config_panel: ConfigPanel::default(),
+            providers: providers(Context::default()),
         }
     }
 }
@@ -42,14 +53,70 @@ impl Default for MyApp {
 impl MyApp {
     fn new(egui_ctx: Context) -> Self {
         Self {
-            tiles: Tiles::new(OpenStreetMap, egui_ctx),
             map_memory: MapMemory::default(),
             open_panel: Panel::default(),
             home_panel: HomePanel::default(),
             log_panel: LogPanel::default(),
             config_panel: ConfigPanel::default(),
+            providers: providers(egui_ctx)
         }
     }
+}
+
+fn providers(egui_ctx: Context) -> HashMap<Provider, Box<dyn TilesManager + Send>> {
+    let mut providers: HashMap<Provider, Box<dyn TilesManager + Send>> = HashMap::default();
+
+    providers.insert(
+        Provider::OpenStreetMap,
+        Box::new(Tiles::with_options(
+            walkers::sources::OpenStreetMap,
+            http_options(),
+            egui_ctx.to_owned(),
+        )),
+    );
+
+    providers.insert(
+        Provider::Geoportal,
+        Box::new(Tiles::with_options(
+            walkers::sources::Geoportal,
+            http_options(),
+            egui_ctx.to_owned(),
+        )),
+    );
+
+    // Pass in a mapbox access token at compile time. May or may not be what you want to do,
+    // potentially loading it from application settings instead.
+    let mapbox_access_token = std::option_env!("MAPBOX_ACCESS_TOKEN");
+
+    // We only show the mapbox map if we have an access token
+    if let Some(token) = mapbox_access_token {
+        providers.insert(
+            Provider::MapboxStreets,
+            Box::new(Tiles::with_options(
+                walkers::sources::Mapbox {
+                    style: walkers::sources::MapboxStyle::Streets,
+                    access_token: token.to_string(),
+                    high_resolution: false,
+                },
+                http_options(),
+                egui_ctx.to_owned(),
+            )),
+        );
+        providers.insert(
+            Provider::MapboxSatellite,
+            Box::new(Tiles::with_options(
+                walkers::sources::Mapbox {
+                    style: walkers::sources::MapboxStyle::Satellite,
+                    access_token: token.to_string(),
+                    high_resolution: true,
+                },
+                http_options(),
+                egui_ctx.to_owned(),
+            )),
+        );
+    }
+
+    providers
 }
 
 impl eframe::App for MyApp {
@@ -65,11 +132,11 @@ impl eframe::App for MyApp {
             match self.open_panel {
                 Panel::Home => {    
                     self.home_panel.ui(ui);
+                    let tiles = self.providers.get_mut(&Provider::OpenStreetMap).unwrap().as_mut();
                     ui.add(Map::new(
-                        Some(&mut self.tiles),
+                        Some(tiles),
                         &mut self.map_memory,
-                        Position::from_lon_lat(44.56203897286608, -123.28196905234289)
-                    ));
+                        Position::from_lat_lon(44.56203897286608, -123.28196905234289)));
                 }
                 Panel::Log => {
                     self.log_panel.ui(ui);
@@ -79,6 +146,16 @@ impl eframe::App for MyApp {
                 }
             }
         });
+    }
+}
+
+fn http_options() -> HttpOptions {
+    HttpOptions {
+        cache: if std::env::var("NO_HTTP_CACHE").is_ok() {
+            None
+        } else {
+            Some(".cache".into())
+        },
     }
 }
 
