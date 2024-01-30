@@ -11,21 +11,8 @@ const TITLE: &str = "egui ex";
 
 #[wasm_bindgen]
 pub fn main() {
-    //let options = eframe::NativeOptions {
-    //    initial_window_size: Some([400.0, 400.0].into()),
-    //    ..Default::default()
-    //};
-
     eframe::WebLogger::init(log::LevelFilter::Debug).ok();
-
     let web_options = eframe::WebOptions::default();
-
-    //eframe::run_native(
-    //    TITLE,
-    //    options,
-    //    Box::new(|_cc| Box::<MyApp>::default()),
-    //)
-
     let app = Box::<MyApp>::default();
 
     wasm_bindgen_futures::spawn_local(async {

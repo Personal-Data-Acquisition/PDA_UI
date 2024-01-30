@@ -4,7 +4,6 @@ use rocket::fs::NamedFile;
 use rocket::http::{Status, ContentType};
 use std::path::{Path, PathBuf};
 
-// The index
 #[get("/")]
 async fn index() -> Result<NamedFile, std::io::Error> {
     NamedFile::open("index.html").await
