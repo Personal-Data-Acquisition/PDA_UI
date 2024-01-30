@@ -1,26 +1,24 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="utf-8" />
-    <title>egui ex</title>
-  </head>
+<head>
+  <meta charset="utf-8" />
+  <title>egui ex</title>
+</head>
 
-  <body>
-    <!--<script type="module">
-      import { default as wasm, main, MyApp} from "./pkg/egui_wasm.js";
+<style>
+    html, body {
+        height: 100%;
+        width: 100%;
+    }
+</style>
 
-      wasm().then((module) => {
-        main();
+<body>
+  <canvas id="egui ex"></canvas>
+  <script type="module">
+      import init, { main } from "./pkg/egui_wasm.js";
+      init().then(() => {
+          main();
       });
-    </script>-->
-
-    <canvas id="egui ex"></canvas>
-    <!--<script src="pkg/egui_wasm.js" type="module"></script>-->
-    <script type="module">
-        import init, { main } from "./pkg/egui_wasm.js";
-        init().then(() => {
-            main();
-        });
-    </script>
-  </body>
+  </script>
+</body>
 </html>
