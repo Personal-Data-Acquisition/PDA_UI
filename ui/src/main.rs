@@ -130,13 +130,20 @@ impl eframe::App for MyApp {
             ui.separator();
 
             match self.open_panel {
-                Panel::Home => {    
-                    self.home_panel.ui(ui);
-                    let tiles = self.providers.get_mut(&Provider::OpenStreetMap).unwrap().as_mut();
-                    ui.add(Map::new(
-                        Some(tiles),
-                        &mut self.map_memory,
-                        Position::from_lat_lon(44.56203897286608, -123.28196905234289)));
+                Panel::Home => {      
+                    ScrollArea::vertical()
+                        .auto_shrink([false, false])
+                        .stick_to_bottom(false)
+                        .show(ui, |ui| {
+                            self.home_panel.ui(ui);
+
+                            let tiles = self.providers.get_mut(&Provider::OpenStreetMap).unwrap().as_mut();
+                            ui.add_sized([ui.available_width(), 600.0],Map::new(
+                                Some(tiles),
+                                &mut self.map_memory,
+                                Position::from_lat_lon(44.56203897286608, -123.28196905234289)));
+                            zoom(ui, &mut self.map_memory);
+                        });
                 }
                 Panel::Log => {
                     self.log_panel.ui(ui);
@@ -351,4 +358,23 @@ impl ConfigPanel {
                 });
             });
     }
+}
+
+pub fn zoom(ui: &Ui, map_memory: &mut MapMemory) {
+    Window::new("Map")
+        .collapsible(false)
+        .resizable(false)
+        .title_bar(false)
+        .anchor(Align2::LEFT_BOTTOM, [10., -10.])
+        .show(ui.ctx(), |ui| {
+            ui.horizontal(|ui| {
+                if ui.button(RichText::new("➕").heading()).clicked() {
+                    let _ = map_memory.zoom_in();
+                }
+
+                if ui.button(RichText::new("➖").heading()).clicked() {
+                    let _ = map_memory.zoom_out();
+                }
+            });
+        });
 }
