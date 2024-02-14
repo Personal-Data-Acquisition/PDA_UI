@@ -1,11 +1,11 @@
 mod utils;
 
 use egui::*;
-
 use egui_plot::{Legend, Line, Plot, PlotPoints};
-
 use wasm_bindgen::prelude::*;
-use log::*;
+use std::collections::HashMap;
+use log::debug;
+use wasm_bindgen_futures::spawn_local;
 
 const TITLE: &str = "egui ex";
 
@@ -13,9 +13,9 @@ const TITLE: &str = "egui ex";
 pub fn main() {
     eframe::WebLogger::init(log::LevelFilter::Debug).ok();
     let web_options = eframe::WebOptions::default();
-    let app = Box::<MyApp>::default();
+    //let app = Box::<MyApp>::default();
 
-    wasm_bindgen_futures::spawn_local(async {
+    spawn_local(async {
         eframe::WebRunner::new()
             .start(
                 TITLE,
@@ -37,7 +37,7 @@ pub struct MyApp {
 }
 
 impl MyApp {
-    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(_: &eframe::CreationContext<'_>) -> Self {
         Default::default()
     }
 }
@@ -81,6 +81,18 @@ impl Default for Panel {
     }
 }
 
+pub async fn send_update(body: &HashMap<&str, &str>, url: &str) {
+    debug!("send_update");
+    let client = reqwest::Client::new();
+    let res = client.post(url)
+        .json(body)
+        .send()
+        .await.expect("no response")
+        .text()
+        .await;
+    debug!("res: {:?}", res);
+}
+
 // Panels ---------------------------------------
 
 #[wasm_bindgen]
@@ -110,9 +122,23 @@ impl HomePanel {
 
         ui.horizontal(|ui| {
             if !self.is_recording {
-                self.is_recording = ui.button("Record").clicked();
+                if ui.button("Record").clicked() {
+                    self.is_recording = true;
+                    let mut body = HashMap::new();
+                    body.insert("isRecording", "true");
+                    spawn_local(async move {
+                        send_update(&body, "http://127.0.0.1:8000/update").await;
+                    })
+                }
             } else {
-                self.is_recording = !ui.button("Stop").clicked();
+                if ui.button("Stop").clicked() {
+                    self.is_recording = false;
+                    let mut body = HashMap::new();
+                    body.insert("isRecording", "false");
+                    spawn_local(async move {
+                        send_update(&body, "http://127.0.0.1:8000/update").await;
+                    })
+                }
             }
         });
     }
@@ -153,7 +179,7 @@ impl LogPanel {
                     ui.strong("Time");
                 });
                 header.col(|ui| {
-                    ui.strong("Temparature");
+                    ui.strong("Temperature");
                 });
                 header.col(|ui| {
                     ui.strong("Acceleration");
