@@ -1,3 +1,5 @@
+mod line_drawing;
+
 use std::{fs::File, ptr::null};
 use walkers::{Tiles, Map, MapMemory, Position, sources::OpenStreetMap, TilesManager, HttpOptions};
 use egui::*;
@@ -138,10 +140,15 @@ impl eframe::App for MyApp {
                             self.home_panel.ui(ui);
 
                             let tiles = self.providers.get_mut(&Provider::OpenStreetMap).unwrap().as_mut();
-                            ui.add_sized([ui.available_width(), 600.0],Map::new(
+
+                            let map = Map::new(
                                 Some(tiles),
                                 &mut self.map_memory,
-                                Position::from_lat_lon(44.56203897286608, -123.28196905234289)));
+                                Position::from_lat_lon(44.56203897286608, -123.28196905234289));
+
+                            let map = map.with_plugin(line_drawing::GpsLine {});
+
+                            ui.add_sized([ui.available_width(), 600.0], map);
                             zoom(ui, &mut self.map_memory);
                         });
                 }
