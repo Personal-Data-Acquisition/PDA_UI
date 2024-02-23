@@ -75,48 +75,7 @@ fn providers(egui_ctx: Context) -> HashMap<Provider, Box<dyn TilesManager + Send
             http_options(),
             egui_ctx.to_owned(),
         )),
-    );
-
-    providers.insert(
-        Provider::Geoportal,
-        Box::new(Tiles::with_options(
-            walkers::sources::Geoportal,
-            http_options(),
-            egui_ctx.to_owned(),
-        )),
-    );
-
-    // Pass in a mapbox access token at compile time. May or may not be what you want to do,
-    // potentially loading it from application settings instead.
-    let mapbox_access_token = std::option_env!("MAPBOX_ACCESS_TOKEN");
-
-    // We only show the mapbox map if we have an access token
-    if let Some(token) = mapbox_access_token {
-        providers.insert(
-            Provider::MapboxStreets,
-            Box::new(Tiles::with_options(
-                walkers::sources::Mapbox {
-                    style: walkers::sources::MapboxStyle::Streets,
-                    access_token: token.to_string(),
-                    high_resolution: false,
-                },
-                http_options(),
-                egui_ctx.to_owned(),
-            )),
-        );
-        providers.insert(
-            Provider::MapboxSatellite,
-            Box::new(Tiles::with_options(
-                walkers::sources::Mapbox {
-                    style: walkers::sources::MapboxStyle::Satellite,
-                    access_token: token.to_string(),
-                    high_resolution: true,
-                },
-                http_options(),
-                egui_ctx.to_owned(),
-            )),
-        );
-    }
+    );  
 
     providers
 }
