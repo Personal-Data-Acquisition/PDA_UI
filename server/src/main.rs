@@ -1,8 +1,9 @@
 #[macro_use] extern crate rocket;
 
 use rocket::fs::NamedFile;
-use rocket::http::{Status, ContentType};
 use std::path::{Path, PathBuf};
+use std::fs::File;
+use std::io::Write;
 
 #[get("/")]
 async fn index() -> Result<NamedFile, std::io::Error> {
@@ -20,10 +21,25 @@ async fn update(value: &str) -> Option<&str> {
     Some(value)
 }
 
+#[post("/update/settings", format = "application/json", data = "<value>")]
+async fn update_settings(value: &str) -> Option<&str> {
+    println!("{}", value);
+    let mut file = match File::create("settings.json") {
+        Err(why) => panic!("couldn't create settings: {}", why),
+        Ok(file) => file,
+    };
+    match file.write_all(value.as_bytes()) {
+        Err(why) => panic!("couldn't write to settings: {}", why),
+        Ok(_) => println!("successfully wrote to settings"),
+    }
+    Some(value)
+}
+
 #[launch]
 fn rocket() -> _ {
     rocket::build()
         .mount("/", routes![index])
         .mount("/", routes![files])
         .mount("/", routes![update])
+        .mount("/", routes![update_settings])
 }

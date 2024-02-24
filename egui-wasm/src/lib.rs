@@ -82,10 +82,32 @@ impl Default for Panel {
 }
 
 pub async fn send_update(body: &HashMap<&str, &str>, url: &str) {
-    debug!("send_update");
     let client = reqwest::Client::new();
     let res = client.post(url)
         .json(body)
+        .send()
+        .await.expect("no response")
+        .text()
+        .await;
+    debug!("res: {:?}", res);
+}
+
+pub async fn send_settings_update(config: ConfigPanel) {
+    let mut body: HashMap<&str, HashMap<&str, String>> = HashMap::new();
+
+    let mut temperature_sensor: HashMap<&str, String> = HashMap::new();
+    temperature_sensor.insert("enabled", config.temp_enabled.to_string());
+    temperature_sensor.insert("sensitivity", config.temp_sensitivity.to_string());
+    body.insert("temperature_sensor", temperature_sensor);
+
+    let mut accelerometer: HashMap<&str, String> = HashMap::new();
+    accelerometer.insert("enabled", config.accel_enabled.to_string());
+    accelerometer.insert("sensitivity", config.accel_sensitivity.to_string());
+    body.insert("accelerometer", accelerometer);
+
+    let client = reqwest::Client::new();
+    let res = client.post("http://127.0.0.1:8000/update/settings")
+        .json(&body)
         .send()
         .await.expect("no response")
         .text()
@@ -214,6 +236,7 @@ impl LogPanel {
 }
 
 #[wasm_bindgen]
+#[derive(Copy, Clone)]
 pub struct ConfigPanel {
     temp_enabled: bool,
     temp_sensitivity: f32,
@@ -266,5 +289,13 @@ impl ConfigPanel {
                     });
                 });
             });
+        ui.horizontal(|ui| {
+            if ui.button("Save").clicked() {
+                let config = self.clone();
+                spawn_local(async move {
+                    send_settings_update(config).await;
+                });
+            }
+        });
     }
 }
