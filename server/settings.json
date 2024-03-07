@@ -1,1 +1,1 @@
-{"temperature_sensor":{"enabled":"true","sensitivity":"6.9"},"accelerometer":{"enabled":"true","sensitivity":"13.1"}}
+"{\"temp_enabled\":true,\"temp_sensitivity\":42.5,\"accel_enabled\":false,\"accel_sensitivity\":8.0}"

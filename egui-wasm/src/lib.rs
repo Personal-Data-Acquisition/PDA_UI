@@ -6,6 +6,7 @@ use wasm_bindgen::prelude::*;
 use std::collections::HashMap;
 use log::debug;
 use wasm_bindgen_futures::spawn_local;
+use serde::{Deserialize, Serialize};
 
 const TITLE: &str = "egui ex";
 
@@ -82,32 +83,9 @@ impl Default for Panel {
 }
 
 pub async fn send_update(body: &HashMap<&str, &str>, url: &str) {
-    let client = reqwest::Client::new();
+    let client = reqwest_wasm::Client::new();
     let res = client.post(url)
         .json(body)
-        .send()
-        .await.expect("no response")
-        .text()
-        .await;
-    debug!("res: {:?}", res);
-}
-
-pub async fn send_settings_update(config: ConfigPanel) {
-    let mut body: HashMap<&str, HashMap<&str, String>> = HashMap::new();
-
-    let mut temperature_sensor: HashMap<&str, String> = HashMap::new();
-    temperature_sensor.insert("enabled", config.temp_enabled.to_string());
-    temperature_sensor.insert("sensitivity", config.temp_sensitivity.to_string());
-    body.insert("temperature_sensor", temperature_sensor);
-
-    let mut accelerometer: HashMap<&str, String> = HashMap::new();
-    accelerometer.insert("enabled", config.accel_enabled.to_string());
-    accelerometer.insert("sensitivity", config.accel_sensitivity.to_string());
-    body.insert("accelerometer", accelerometer);
-
-    let client = reqwest::Client::new();
-    let res = client.post("http://127.0.0.1:8000/update/settings")
-        .json(&body)
         .send()
         .await.expect("no response")
         .text()
@@ -236,21 +214,43 @@ impl LogPanel {
 }
 
 #[wasm_bindgen]
-#[derive(Copy, Clone)]
-pub struct ConfigPanel {
+#[derive(Copy, Clone, Deserialize, Serialize)]
+pub struct Config {
     temp_enabled: bool,
     temp_sensitivity: f32,
     accel_enabled: bool,
     accel_sensitivity: f32,
 }
 
+impl Config {
+    pub fn new(
+        temp_enabled: bool, 
+        temp_sensitivity: f32, 
+        accel_enabled: bool, 
+        accel_sensitivity: f32) -> Self {
+            
+        Self {
+            temp_enabled: temp_enabled,
+            temp_sensitivity: temp_sensitivity,
+            accel_enabled: accel_enabled,
+            accel_sensitivity: accel_sensitivity,
+        }
+    }
+}
+
+#[wasm_bindgen]
+pub struct ConfigPanel {
+    settings_promise: poll_promise::Promise<Option<String>>,
+    config: Config,
+}
+
 impl Default for ConfigPanel {
     fn default() -> Self {
         Self {
-            temp_enabled: true,
-            temp_sensitivity: 8.0,
-            accel_enabled: true,
-            accel_sensitivity: 8.0,
+            settings_promise: poll_promise::Promise::spawn_local(async {
+                ConfigPanel::req_settings().await
+            }),
+            config: Config::new(true, 8.0, true, 8.0),
         }
     }
 }
@@ -263,11 +263,11 @@ impl ConfigPanel {
                     ui.vertical_centered(|ui| {
                         ui.heading("Temperature Sensor");
                     });
-                    ui.checkbox(&mut self.temp_enabled, "Enabled");
-                    ui.add_enabled_ui(self.temp_enabled, |ui| {
+                    ui.checkbox(&mut self.config.temp_enabled, "Enabled");
+                    ui.add_enabled_ui(self.config.temp_enabled, |ui| {
                         ui.horizontal(|ui| {
                             ui.add(egui::DragValue::
-                                   new(&mut self.temp_sensitivity).speed(0.1));
+                                   new(&mut self.config.temp_sensitivity).speed(0.1));
                             ui.add(egui::Label::new("Sensitivity"));
                         });
                     });
@@ -279,11 +279,11 @@ impl ConfigPanel {
                     ui.vertical_centered(|ui| {
                         ui.heading("Accelerometer");
                     });
-                    ui.checkbox(&mut self.accel_enabled, "Enabled");
-                    ui.add_enabled_ui(self.accel_enabled, |ui| {
+                    ui.checkbox(&mut self.config.accel_enabled, "Enabled");
+                    ui.add_enabled_ui(self.config.accel_enabled, |ui| {
                         ui.horizontal(|ui| {
                             ui.add(egui::DragValue::
-                                   new(&mut self.accel_sensitivity).speed(0.1));
+                                   new(&mut self.config.accel_sensitivity).speed(0.1));
                             ui.add(egui::Label::new("Sensitivity"));
                         });
                     });
@@ -291,11 +291,55 @@ impl ConfigPanel {
             });
         ui.horizontal(|ui| {
             if ui.button("Save").clicked() {
-                let config = self.clone();
+                let config = self.config.clone();
                 spawn_local(async move {
-                    send_settings_update(config).await;
+                    ConfigPanel::send_settings_update(config).await;
                 });
             }
+            if ui.button("Update").clicked() {
+                if let Some(result) = self.settings_promise.ready() {
+                    if let Some(json) = result {
+                        self.config = serde_json::from_str(json.as_str()).unwrap();
+                    } else {
+                        debug!("Result error")
+                    }
+                } else {
+                    debug!("not ready yet");
+                }
+            }
         });
+    }
+
+    pub async fn send_settings_update(config: Config) {
+        let client = reqwest_wasm::Client::new();
+        let res = client.post("http://127.0.0.1:8000/update/settings")
+            .json(&serde_json::to_string(&config).expect("couldn't serialize"))
+            .send()
+            .await.expect("no response")
+            .text()
+            .await;
+        debug!("res: {:?}", res);
+    }
+    
+    pub async fn req_settings() -> Option<String> {
+        let client = reqwest_wasm::Client::new();
+        let res = match client.get("http://127.0.0.1:8000/req/settings").send().await {
+            Err(why) => {
+                debug!("failed to get: {}", why);
+                return None;
+            },
+            Ok(result) => {
+                result
+            },
+        };
+        return match res.json().await {
+            Err(why) => {
+                debug!("failed parse json: {}", why);
+                return None;
+            },
+            Ok(result) => {
+                Some(result)
+            }
+        }
     }
 }
