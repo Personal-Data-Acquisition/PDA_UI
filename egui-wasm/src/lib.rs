@@ -241,6 +241,7 @@ impl Config {
 #[wasm_bindgen]
 pub struct ConfigPanel {
     settings_promise: poll_promise::Promise<Option<String>>,
+    config_received: bool,
     config: Config,
 }
 
@@ -250,6 +251,7 @@ impl Default for ConfigPanel {
             settings_promise: poll_promise::Promise::spawn_local(async {
                 ConfigPanel::req_settings().await
             }),
+            config_received: false,
             config: Config::new(true, 8.0, true, 8.0),
         }
     }
@@ -290,26 +292,28 @@ impl ConfigPanel {
                 });
             });
         ui.horizontal(|ui| {
+            // this button will send config to server
             if ui.button("Save").clicked() {
                 let config = self.config.clone();
                 spawn_local(async move {
                     ConfigPanel::send_settings_update(config).await;
                 });
             }
-            if ui.button("Update").clicked() {
-                if let Some(result) = self.settings_promise.ready() {
-                    if let Some(json) = result {
-                        self.config = serde_json::from_str(json.as_str()).unwrap();
-                    } else {
-                        debug!("Result error")
-                    }
+        });
+        // Poll config until ready
+        if !self.config_received {
+            if let Some(result) = self.settings_promise.ready() {
+                if let Some(json) = result {
+                    self.config = serde_json::from_str(json.as_str()).unwrap();
+                    self.config_received = true;
                 } else {
-                    debug!("not ready yet");
+                    debug!("Result error")
                 }
             }
-        });
+        }
     }
 
+    // Sends config to sever as JSON
     pub async fn send_settings_update(config: Config) {
         let client = reqwest_wasm::Client::new();
         let res = client.post("http://127.0.0.1:8000/update/settings")
@@ -321,6 +325,7 @@ impl ConfigPanel {
         debug!("res: {:?}", res);
     }
     
+    // Requests config from server, and pack it into a promise
     pub async fn req_settings() -> Option<String> {
         let client = reqwest_wasm::Client::new();
         let res = match client.get("http://127.0.0.1:8000/req/settings").send().await {
