@@ -193,7 +193,7 @@ impl HomePanel {
         });
 
         let rt = Runtime::new().unwrap();
-        let accel = sql_parsing::pull_acceleration();
+        let accel = sql_parsing::pull_acceleration_x();
         let val = unwrap_or_return!(rt.block_on(accel));
         // println!("{val:#?}");
 
@@ -205,10 +205,6 @@ impl HomePanel {
             }
         });
     }
-}
-
-async fn mre() -> i32 {
-    42
 }
 
 fn vec_from_csv(path: &str) -> Result<Vec<[f64; 2]>, Box<dyn std::error::Error>> {
