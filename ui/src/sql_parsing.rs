@@ -35,3 +35,35 @@ pub async fn pull_acceleration_x() -> Result<Vec<[f64; 2]>, Box<dyn std::error::
 
     Ok(accel)
 }
+
+pub async fn pull_acceleration_y() -> Result<Vec<[f64; 2]>, Box<dyn std::error::Error>> {
+    let pool = SqlitePool::connect(DB_URL).await?;
+    let qry: &str = "SELECT accelerometer_y FROM accelerometer_data WHERE id IN (SELECT id FROM accelerometer_data ORDER BY id DESC LIMIT 50)";
+    let acceleration_y = sqlx::query(qry).fetch_all(&pool).await?;
+
+    let mut accel: Vec<[f64; 2]> = vec![];
+    let mut i: f64 = 0.0;
+    for row in acceleration_y {
+        let val: f64 = row.get(0);
+        accel.push([i, val]);
+        i += 1.0;
+    }
+
+    Ok(accel)
+}
+
+pub async fn pull_acceleration_z() -> Result<Vec<[f64; 2]>, Box<dyn std::error::Error>> {
+    let pool = SqlitePool::connect(DB_URL).await?;
+    let qry: &str = "SELECT accelerometer_z FROM accelerometer_data WHERE id IN (SELECT id FROM accelerometer_data ORDER BY id DESC LIMIT 50)";
+    let acceleration_z = sqlx::query(qry).fetch_all(&pool).await?;
+
+    let mut accel: Vec<[f64; 2]> = vec![];
+    let mut i: f64 = 0.0;
+    for row in acceleration_z {
+        let val: f64 = row.get(0);
+        accel.push([i, val]);
+        i += 1.0;
+    }
+
+    Ok(accel)
+}

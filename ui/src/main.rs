@@ -173,29 +173,32 @@ impl Default for HomePanel {
 
 impl HomePanel {
     fn ui(&mut self, ui: &mut Ui,) {
-        let my_plot = Plot::new("My Plot")
+        let plot_accel_x = Plot::new("Acceleration X")
             .legend(Legend::default())
             .height(200.0);
-        let plot_csv = Plot::new("CSV Plot")
+        let plot_accel_y = Plot::new("Acceleration Y")
             .legend(Legend::default())
             .height(200.0);
-
-        // let's create a dummy line in the plot
-        let graph: Vec<[f64; 2]> = vec![[0.0, 1.0], [2.0, 3.0], [3.0, 2.0]];
-        my_plot.show(ui, |plot_ui| {
-            plot_ui.line(Line::new(PlotPoints::from(graph)).name("Temperature"));
-        });
-
-        // Now create a plot from file data
-        let graph_sensor: Vec<[f64; 2]> = vec_from_csv("sensor.csv").unwrap();
-        plot_csv.show(ui, |plot_ui| {
-            plot_ui.line(Line::new(PlotPoints::from(graph_sensor)).name("Acceleration"));
-        });
+        let plot_accel_z = Plot::new("Acceleration Z")
+            .legend(Legend::default())
+            .height(200.0);
 
         let rt = Runtime::new().unwrap();
-        let accel = sql_parsing::pull_acceleration_x();
-        let val = unwrap_or_return!(rt.block_on(accel));
-        // println!("{val:#?}");
+
+        let accel_x = unwrap_or_return!(rt.block_on(sql_parsing::pull_acceleration_x()));
+        plot_accel_x.show(ui, |plot_ui| {
+            plot_ui.line(Line::new(PlotPoints::from(accel_x)).name("Acceleration X"));
+        });
+
+        let accel_y = unwrap_or_return!(rt.block_on(sql_parsing::pull_acceleration_y()));
+        plot_accel_y.show(ui, |plot_ui| {
+            plot_ui.line(Line::new(PlotPoints::from(accel_y)).name("Acceleration Y"));
+        });
+
+        let accel_z = unwrap_or_return!(rt.block_on(sql_parsing::pull_acceleration_z()));
+        plot_accel_z.show(ui, |plot_ui| {
+            plot_ui.line(Line::new(PlotPoints::from(accel_z)).name("Acceleration Z"));
+        });
 
         ui.horizontal(|ui| {
             if !self.is_recording {
