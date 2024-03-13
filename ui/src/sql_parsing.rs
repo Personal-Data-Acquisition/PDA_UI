@@ -1,26 +1,31 @@
-use sqlx::{sqlite::{SqliteConnectOptions, SqlitePool, SqliteRow}, Error, Row};
-use std::{future::Future, path::Path};
+use sqlx::{sqlite::{ SqlitePool, SqliteRow}, Error, Row};
 
-const DB_NAME: &str = "sensor_data.db";
 const DB_URL: &str = "sqlite://sensor_data.db";
 
-// Function taken from: https://stackoverflow.com/questions/72763578/how-to-create-a-sqlite-database-with-rust-sqlx
-async fn connect_file(filename: impl AsRef<Path>) -> impl Future<Output = Result<SqlitePool, Error>> {
-    let options = SqliteConnectOptions::new()
-        .filename(filename)
-        .create_if_missing(false);
-
-    SqlitePool::connect_with(options)
-}
-
-pub async fn pull_acceleration() -> Result<Vec<SqliteRow>, Box<dyn std::error::Error>> {
+pub async fn full_acceleration() -> Result<Vec<[String; 5]>, Box<dyn std::error::Error>> {
     let pool = SqlitePool::connect(DB_URL).await?;
-    let acceleration = sqlx::query("SELECT * FROM accelerometer_data").fetch_all(&pool).await?;
+    let qry: &str = "SELECT id, timestamp, accelerometer_x, accelerometer_y, accelerometer_z FROM accelerometer_data WHERE id IN (SELECT id FROM accelerometer_data ORDER BY id DESC LIMIT 1000)";
+    let acceleration = sqlx::query(qry).fetch_all(&pool).await?;
 
-    Ok(acceleration)
+    let mut accel: Vec<[String; 5]> = Default::default();
+    for row in acceleration {
+        let int: i32 = row.get(0);
+        let id = int.to_string();
+        let time = row.get(1);
+        let mut dec: f32 = row.get(2);
+        let acc_x = dec.to_string();
+        dec = row.get(3);
+        let acc_y = dec.to_string();
+        dec = row.get(4);
+        let acc_z = dec.to_string();
+
+        accel.push([id, time, acc_x, acc_y, acc_z]);
+    }
+
+    Ok(accel)
 }
 
-pub async fn pull_acceleration_x() -> Result<Vec<[f64; 2]>, Box<dyn std::error::Error>> {
+pub async fn latest_acceleration_x() -> Result<Vec<[f64; 2]>, Box<dyn std::error::Error>> {
     let pool = SqlitePool::connect(DB_URL).await?;
     let qry: &str = "SELECT accelerometer_x FROM accelerometer_data WHERE id IN (SELECT id FROM accelerometer_data ORDER BY id DESC LIMIT 50)";
     let acceleration_x = sqlx::query(qry).fetch_all(&pool).await?;
@@ -36,7 +41,7 @@ pub async fn pull_acceleration_x() -> Result<Vec<[f64; 2]>, Box<dyn std::error::
     Ok(accel)
 }
 
-pub async fn pull_acceleration_y() -> Result<Vec<[f64; 2]>, Box<dyn std::error::Error>> {
+pub async fn latest_acceleration_y() -> Result<Vec<[f64; 2]>, Box<dyn std::error::Error>> {
     let pool = SqlitePool::connect(DB_URL).await?;
     let qry: &str = "SELECT accelerometer_y FROM accelerometer_data WHERE id IN (SELECT id FROM accelerometer_data ORDER BY id DESC LIMIT 50)";
     let acceleration_y = sqlx::query(qry).fetch_all(&pool).await?;
@@ -52,7 +57,7 @@ pub async fn pull_acceleration_y() -> Result<Vec<[f64; 2]>, Box<dyn std::error::
     Ok(accel)
 }
 
-pub async fn pull_acceleration_z() -> Result<Vec<[f64; 2]>, Box<dyn std::error::Error>> {
+pub async fn latest_acceleration_z() -> Result<Vec<[f64; 2]>, Box<dyn std::error::Error>> {
     let pool = SqlitePool::connect(DB_URL).await?;
     let qry: &str = "SELECT accelerometer_z FROM accelerometer_data WHERE id IN (SELECT id FROM accelerometer_data ORDER BY id DESC LIMIT 50)";
     let acceleration_z = sqlx::query(qry).fetch_all(&pool).await?;
