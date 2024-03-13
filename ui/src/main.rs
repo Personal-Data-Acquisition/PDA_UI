@@ -1,10 +1,13 @@
 mod line_drawing;
+mod sql_parsing;
 
 use std::{fs::File, ptr::null};
+use futures::{executor, FutureExt};
 use walkers::{Tiles, Map, MapMemory, Position, sources::OpenStreetMap, TilesManager, HttpOptions};
 use egui::*;
 use egui_plot::{Legend, Line, Plot, PlotPoints};
 use std::collections::HashMap;
+use tokio::runtime::Runtime;
 
 const TITLE: &str = "egui ex";
 
@@ -15,6 +18,15 @@ pub enum Provider {
     MapboxStreets,
     MapboxSatellite,
     LocalTiles,
+}
+
+macro_rules! unwrap_or_return {
+    ( $e:expr ) => {
+        match $e {
+            Ok(x) => x,
+            Err(_) => return,
+        }
+    }
 }
 
 fn main() -> Result<(), eframe::Error> {
@@ -180,6 +192,11 @@ impl HomePanel {
             plot_ui.line(Line::new(PlotPoints::from(graph_sensor)).name("Acceleration"));
         });
 
+        let rt = Runtime::new().unwrap();
+        let accel = sql_parsing::pull_acceleration();
+        let val = unwrap_or_return!(rt.block_on(accel));
+        // println!("{val:#?}");
+
         ui.horizontal(|ui| {
             if !self.is_recording {
                 self.is_recording = ui.button("Record").clicked();
@@ -188,6 +205,10 @@ impl HomePanel {
             }
         });
     }
+}
+
+async fn mre() -> i32 {
+    42
 }
 
 fn vec_from_csv(path: &str) -> Result<Vec<[f64; 2]>, Box<dyn std::error::Error>> {
