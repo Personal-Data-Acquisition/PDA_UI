@@ -185,20 +185,20 @@ impl HomePanel {
 
         let rt = Runtime::new().unwrap();
 
-        let accel_x = unwrap_or_return!(rt.block_on(sql_parsing::latest_acceleration_x()));
-        plot_accel_x.show(ui, |plot_ui| {
-            plot_ui.line(Line::new(PlotPoints::from(accel_x)).name("Acceleration X"));
-        });
+        // let accel_x = unwrap_or_return!(rt.block_on(sql_parsing::latest_acceleration_x()));
+        // plot_accel_x.show(ui, |plot_ui| {
+        //     plot_ui.line(Line::new(PlotPoints::from(accel_x)).name("Acceleration X"));
+        // });
 
-        let accel_y = unwrap_or_return!(rt.block_on(sql_parsing::latest_acceleration_y()));
-        plot_accel_y.show(ui, |plot_ui| {
-            plot_ui.line(Line::new(PlotPoints::from(accel_y)).name("Acceleration Y"));
-        });
+        // let accel_y = unwrap_or_return!(rt.block_on(sql_parsing::latest_acceleration_y()));
+        // plot_accel_y.show(ui, |plot_ui| {
+        //     plot_ui.line(Line::new(PlotPoints::from(accel_y)).name("Acceleration Y"));
+        // });
 
-        let accel_z = unwrap_or_return!(rt.block_on(sql_parsing::latest_acceleration_z()));
-        plot_accel_z.show(ui, |plot_ui| {
-            plot_ui.line(Line::new(PlotPoints::from(accel_z)).name("Acceleration Z"));
-        });
+        // let accel_z = unwrap_or_return!(rt.block_on(sql_parsing::latest_acceleration_z()));
+        // plot_accel_z.show(ui, |plot_ui| {
+        //     plot_ui.line(Line::new(PlotPoints::from(accel_z)).name("Acceleration Z"));
+        // });
 
         ui.horizontal(|ui| {
             if !self.is_recording {
@@ -257,59 +257,35 @@ impl LogPanel {
             .body(|mut body| {
                 let row_height = 18.0;
 
-                let rt = Runtime::new().unwrap();
-                let table_data = unwrap_or_return!(rt.block_on(sql_parsing::full_acceleration()));
-                for entry in table_data {
-                    body.row(row_height, |mut row| {
-                        row.col(|ui| {
-                            ui.label(entry[0].to_string());
-                        });
-                        row.col(|ui| {
-                            ui.add(
-                                egui::Label::new(entry[1].to_string()).wrap(false),
-                            );
-                        });
-                        row.col(|ui| {
-                            ui.add(
-                                egui::Label::new(entry[2].to_string()).wrap(false),
-                            );
-                        });
-                        row.col(|ui| {
-                            ui.add(
-                                egui::Label::new(entry[3].to_string()).wrap(false),
-                            );
-                        });
-                        row.col(|ui| {
-                            ui.add(
-                                egui::Label::new(entry[4].to_string()).wrap(false),
-                            );
-                        });
-                    });
-
-                }
-
-                // for row_index in 0..10 {
-                //     let row_height = 18.0;
+                // let rt = Runtime::new().unwrap();
+                // let table_data = unwrap_or_return!(rt.block_on(sql_parsing::full_acceleration()));
+                // for entry in table_data {
                 //     body.row(row_height, |mut row| {
                 //         row.col(|ui| {
-                //             ui.label(row_index.to_string());
+                //             ui.label(entry[0].to_string());
                 //         });
                 //         row.col(|ui| {
                 //             ui.add(
-                //                 egui::Label::new("12:00:00.000").wrap(false),
+                //                 egui::Label::new(entry[1].to_string()).wrap(false),
                 //             );
                 //         });
                 //         row.col(|ui| {
                 //             ui.add(
-                //                 egui::Label::new("27.5").wrap(false),
+                //                 egui::Label::new(entry[2].to_string()).wrap(false),
                 //             );
                 //         });
                 //         row.col(|ui| {
                 //             ui.add(
-                //                 egui::Label::new("0.2").wrap(false),
+                //                 egui::Label::new(entry[3].to_string()).wrap(false),
+                //             );
+                //         });
+                //         row.col(|ui| {
+                //             ui.add(
+                //                 egui::Label::new(entry[4].to_string()).wrap(false),
                 //             );
                 //         });
                 //     });
+
                 // }
             });
     }
