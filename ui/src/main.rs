@@ -1,10 +1,13 @@
 mod line_drawing;
+mod sql_parsing;
 
 use std::{fs::File, ptr::null};
+use futures::{executor, FutureExt};
 use walkers::{Tiles, Map, MapMemory, Position, sources::OpenStreetMap, TilesManager, HttpOptions};
 use egui::*;
 use egui_plot::{Legend, Line, Plot, PlotPoints};
 use std::collections::HashMap;
+use tokio::runtime::Runtime;
 
 const TITLE: &str = "egui ex";
 
@@ -15,6 +18,15 @@ pub enum Provider {
     MapboxStreets,
     MapboxSatellite,
     LocalTiles,
+}
+
+macro_rules! unwrap_or_return {
+    ( $e:expr ) => {
+        match $e {
+            Ok(x) => x,
+            Err(_) => return,
+        }
+    }
 }
 
 fn main() -> Result<(), eframe::Error> {
@@ -161,23 +173,31 @@ impl Default for HomePanel {
 
 impl HomePanel {
     fn ui(&mut self, ui: &mut Ui,) {
-        let my_plot = Plot::new("My Plot")
+        let plot_accel_x = Plot::new("Acceleration X")
             .legend(Legend::default())
             .height(200.0);
-        let plot_csv = Plot::new("CSV Plot")
+        let plot_accel_y = Plot::new("Acceleration Y")
+            .legend(Legend::default())
+            .height(200.0);
+        let plot_accel_z = Plot::new("Acceleration Z")
             .legend(Legend::default())
             .height(200.0);
 
-        // let's create a dummy line in the plot
-        let graph: Vec<[f64; 2]> = vec![[0.0, 1.0], [2.0, 3.0], [3.0, 2.0]];
-        my_plot.show(ui, |plot_ui| {
-            plot_ui.line(Line::new(PlotPoints::from(graph)).name("Temperature"));
+        let rt = Runtime::new().unwrap();
+
+        let accel_x = unwrap_or_return!(rt.block_on(sql_parsing::latest_acceleration_x()));
+        plot_accel_x.show(ui, |plot_ui| {
+            plot_ui.line(Line::new(PlotPoints::from(accel_x)).name("Acceleration X"));
         });
 
-        // Now create a plot from file data
-        let graph_sensor: Vec<[f64; 2]> = vec_from_csv("sensor.csv").unwrap();
-        plot_csv.show(ui, |plot_ui| {
-            plot_ui.line(Line::new(PlotPoints::from(graph_sensor)).name("Acceleration"));
+        let accel_y = unwrap_or_return!(rt.block_on(sql_parsing::latest_acceleration_y()));
+        plot_accel_y.show(ui, |plot_ui| {
+            plot_ui.line(Line::new(PlotPoints::from(accel_y)).name("Acceleration Y"));
+        });
+
+        let accel_z = unwrap_or_return!(rt.block_on(sql_parsing::latest_acceleration_z()));
+        plot_accel_z.show(ui, |plot_ui| {
+            plot_ui.line(Line::new(PlotPoints::from(accel_z)).name("Acceleration Z"));
         });
 
         ui.horizontal(|ui| {
@@ -188,19 +208,6 @@ impl HomePanel {
             }
         });
     }
-}
-
-fn vec_from_csv(path: &str) -> Result<Vec<[f64; 2]>, Box<dyn std::error::Error>> {
-    let csv = File::open(path)?;
-    let mut reader = csv::ReaderBuilder::new().has_headers(false).from_reader(csv);
-    let mut vector: Vec<[f64; 2]> = vec![];
-
-    for point in reader.deserialize() {
-        let record: [f64; 2] = point?;
-        vector.push(record);
-    }
-
-    Ok(vector)
 }
 
 struct LogPanel {}
@@ -223,6 +230,7 @@ impl LogPanel {
             .column(Column::auto())
             .column(Column::auto())
             .column(Column::auto())
+            .column(Column::auto())
             //.column(Column::initial(100.0).range(40.0..=300.0))
             //.column(Column::initial(100.0).at_least(40.0).clip(true))
             //.column(Column::remainder())
@@ -237,36 +245,72 @@ impl LogPanel {
                     ui.strong("Time");
                 });
                 header.col(|ui| {
-                    ui.strong("Temparature");
+                    ui.strong("Acceleration X");
                 });
                 header.col(|ui| {
-                    ui.strong("Acceleration");
+                    ui.strong("Acceleration Y");
+                });
+                header.col(|ui| {
+                    ui.strong("Acceleration Z");
                 });
             })
             .body(|mut body| {
-                for row_index in 0..10 {
-                    let row_height = 18.0;
+                let row_height = 18.0;
+
+                let rt = Runtime::new().unwrap();
+                let table_data = unwrap_or_return!(rt.block_on(sql_parsing::full_acceleration()));
+                for entry in table_data {
                     body.row(row_height, |mut row| {
                         row.col(|ui| {
-                            ui.label(row_index.to_string());
+                            ui.label(entry[0].to_string());
                         });
                         row.col(|ui| {
                             ui.add(
-                                egui::Label::new("12:00:00.000").wrap(false),
+                                egui::Label::new(entry[1].to_string()).wrap(false),
                             );
                         });
                         row.col(|ui| {
                             ui.add(
-                                egui::Label::new("27.5").wrap(false),
+                                egui::Label::new(entry[2].to_string()).wrap(false),
                             );
                         });
                         row.col(|ui| {
                             ui.add(
-                                egui::Label::new("0.2").wrap(false),
+                                egui::Label::new(entry[3].to_string()).wrap(false),
+                            );
+                        });
+                        row.col(|ui| {
+                            ui.add(
+                                egui::Label::new(entry[4].to_string()).wrap(false),
                             );
                         });
                     });
+
                 }
+
+                // for row_index in 0..10 {
+                //     let row_height = 18.0;
+                //     body.row(row_height, |mut row| {
+                //         row.col(|ui| {
+                //             ui.label(row_index.to_string());
+                //         });
+                //         row.col(|ui| {
+                //             ui.add(
+                //                 egui::Label::new("12:00:00.000").wrap(false),
+                //             );
+                //         });
+                //         row.col(|ui| {
+                //             ui.add(
+                //                 egui::Label::new("27.5").wrap(false),
+                //             );
+                //         });
+                //         row.col(|ui| {
+                //             ui.add(
+                //                 egui::Label::new("0.2").wrap(false),
+                //             );
+                //         });
+                //     });
+                // }
             });
     }
 }
