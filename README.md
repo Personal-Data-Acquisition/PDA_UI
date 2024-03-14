@@ -1,13 +1,7 @@
 # PDA_UI
 The User Interface for the PDA project
 
+## Compilation Instructions
+In `ui` run `./build`, or run `wasm-pack build -t web` and replace `server/pkg` with `ui/pkg`.
 
-## Framework Branches
-There are branches for testing out the Rocket, Actix-Web and Tide webservers/frameworks.
-
-### Running examples
-```sh
-git clone <REPO URL>
-git switch <rocket, actix_web, or tide>
-cargo run
-```
+In `server`, run `cargo run` and open the address provided in your browser.
