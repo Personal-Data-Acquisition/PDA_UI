@@ -31,13 +31,28 @@ async fn req_data_latest(param: &str) -> String {
         "acceleration_x" => sql_parsing::latest_acceleration_x().await,
         "acceleration_y" => sql_parsing::latest_acceleration_y().await,
         "acceleration_z" => sql_parsing::latest_acceleration_z().await,
-        &_ => Err("bad".into()),
+        // todo: more data types
+        &_ => Err("invalid data type for req_data_latest".into()),
     };
     let value = match content {
-        Ok(c) => serde_json::to_string(&c).expect("bad"),
-        Err(why) => panic!("bad: {}", why),
+        Ok(c) => serde_json::to_string(&c).expect("could not convert data to json"),
+        Err(why) => panic!("invalid content: {}", why),
     };
     //print!("{}", value);
+    value
+}
+
+#[get("/req/data/full/<param>")]
+async fn req_data_full(param: &str) -> String {
+    let content = match param {
+        "acceleration" => sql_parsing::full_acceleration().await,
+        // todo: more data types
+        &_ => Err("invalid data type for req_data_full".into()),
+    };
+    let value = match content {
+        Ok(c) => serde_json::to_string(&c).expect("could not convert data to json"),
+        Err(why) => panic!("invalid content: {}", why),
+    };
     value
 }
 
@@ -70,4 +85,5 @@ fn rocket() -> _ {
         .mount("/", routes![update_settings])
         .mount("/", routes![req_settings])
         .mount("/", routes![req_data_latest])
+        .mount("/", routes![req_data_full])
 }

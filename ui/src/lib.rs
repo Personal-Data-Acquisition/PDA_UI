@@ -223,6 +223,7 @@ impl HomePanel {
         });
     }
 
+    /// Requests data of type `Option<Vec<[f64; 2]>>` from the server
     async fn req_data_latest(param: &str) -> Option<Vec<[f64; 2]>> {
         let client = reqwest_wasm::Client::new();
         let res = match client.get("http://127.0.0.1:8000/req/data/latest/".to_owned() + param).send().await {
@@ -247,11 +248,20 @@ impl HomePanel {
 }
 
 #[wasm_bindgen]
-pub struct LogPanel {}
+pub struct LogPanel {
+    accel: PollableValue<Vec<[String; 5]>>,
+}
 
 impl Default for LogPanel {
     fn default() -> Self {
-        Self {}
+        Self {
+            accel: PollableValue::new(
+                Default::default(), 
+                poll_promise::Promise::spawn_local(async {
+                    LogPanel::req_data_full("acceleration").await
+                })
+            ),
+        }
     }
 }
 
@@ -268,9 +278,6 @@ impl LogPanel {
             .column(Column::auto())
             .column(Column::auto())
             .column(Column::auto())
-            //.column(Column::initial(100.0).range(40.0..=300.0))
-            //.column(Column::initial(100.0).at_least(40.0).clip(true))
-            //.column(Column::remainder())
             .min_scrolled_height(0.0);
 
         table
@@ -294,37 +301,60 @@ impl LogPanel {
             .body(|mut body| {
                 let row_height = 18.0;
 
-                // let rt = Runtime::new().unwrap();
-                // let table_data = unwrap_or_return!(rt.block_on(sql_parsing::full_acceleration()));
-                // for entry in table_data {
-                //     body.row(row_height, |mut row| {
-                //         row.col(|ui| {
-                //             ui.label(entry[0].to_string());
-                //         });
-                //         row.col(|ui| {
-                //             ui.add(
-                //                 egui::Label::new(entry[1].to_string()).wrap(false),
-                //             );
-                //         });
-                //         row.col(|ui| {
-                //             ui.add(
-                //                 egui::Label::new(entry[2].to_string()).wrap(false),
-                //             );
-                //         });
-                //         row.col(|ui| {
-                //             ui.add(
-                //                 egui::Label::new(entry[3].to_string()).wrap(false),
-                //             );
-                //         });
-                //         row.col(|ui| {
-                //             ui.add(
-                //                 egui::Label::new(entry[4].to_string()).wrap(false),
-                //             );
-                //         });
-                //     });
-
-                // }
+                if self.accel.poll() {
+                    let table_data = self.accel.value.clone();
+                    for entry in table_data {
+                        body.row(row_height, |mut row| {
+                            row.col(|ui| {
+                                ui.label(entry[0].to_string());
+                            });
+                            row.col(|ui| {
+                                ui.add(
+                                    egui::Label::new(entry[1].to_string()).wrap(false),
+                                );
+                            });
+                            row.col(|ui| {
+                                ui.add(
+                                    egui::Label::new(entry[2].to_string()).wrap(false),
+                                );
+                            });
+                            row.col(|ui| {
+                                ui.add(
+                                    egui::Label::new(entry[3].to_string()).wrap(false),
+                                );
+                            });
+                            row.col(|ui| {
+                                ui.add(
+                                    egui::Label::new(entry[4].to_string()).wrap(false),
+                                );
+                            });
+                        });
+                    }
+                }
             });
+    }
+
+    /// Requests data of type `Option<Vec<[String; 5]>>` from the server
+    async fn req_data_full(param: &str) -> Option<Vec<[String; 5]>> {
+        let client = reqwest_wasm::Client::new();
+        let res = match client.get("http://127.0.0.1:8000/req/data/full/".to_owned() + param).send().await {
+            Err(why) => {
+                debug!("failed to get: {}", why);
+                return None;
+            },
+            Ok(result) => {
+                result
+            },
+        };
+        return match res.json::<Vec<[String; 5]>>().await {
+            Err(why) => {
+                debug!("failed to parse json: {},", why);
+                None
+            },
+            Ok(result) => {
+                Some(result)
+            }
+        }
     }
 }
 
