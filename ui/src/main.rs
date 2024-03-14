@@ -1,5 +1,4 @@
 mod line_drawing;
-mod sql_parsing;
 
 use std::{fs::File, ptr::null};
 use futures::{executor, FutureExt};
@@ -7,9 +6,8 @@ use walkers::{Tiles, Map, MapMemory, Position, sources::OpenStreetMap, TilesMana
 use egui::*;
 use egui_plot::{Legend, Line, Plot, PlotPoints};
 use std::collections::HashMap;
-use tokio::runtime::Runtime;
 
-const TITLE: &str = "egui ex";
+const TITLE: &str = "Personal Data Acquisition";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Provider {
@@ -185,20 +183,20 @@ impl HomePanel {
 
         let rt = Runtime::new().unwrap();
 
-        // let accel_x = unwrap_or_return!(rt.block_on(sql_parsing::latest_acceleration_x()));
-        // plot_accel_x.show(ui, |plot_ui| {
-        //     plot_ui.line(Line::new(PlotPoints::from(accel_x)).name("Acceleration X"));
-        // });
+        let accel_x = unwrap_or_return!(rt.block_on(sql_parsing::latest_acceleration_x()));
+        plot_accel_x.show(ui, |plot_ui| {
+            plot_ui.line(Line::new(PlotPoints::from(accel_x)).name("Acceleration X"));
+        });
 
-        // let accel_y = unwrap_or_return!(rt.block_on(sql_parsing::latest_acceleration_y()));
-        // plot_accel_y.show(ui, |plot_ui| {
-        //     plot_ui.line(Line::new(PlotPoints::from(accel_y)).name("Acceleration Y"));
-        // });
+        let accel_y = unwrap_or_return!(rt.block_on(sql_parsing::latest_acceleration_y()));
+        plot_accel_y.show(ui, |plot_ui| {
+            plot_ui.line(Line::new(PlotPoints::from(accel_y)).name("Acceleration Y"));
+        });
 
-        // let accel_z = unwrap_or_return!(rt.block_on(sql_parsing::latest_acceleration_z()));
-        // plot_accel_z.show(ui, |plot_ui| {
-        //     plot_ui.line(Line::new(PlotPoints::from(accel_z)).name("Acceleration Z"));
-        // });
+        let accel_z = unwrap_or_return!(rt.block_on(sql_parsing::latest_acceleration_z()));
+        plot_accel_z.show(ui, |plot_ui| {
+            plot_ui.line(Line::new(PlotPoints::from(accel_z)).name("Acceleration Z"));
+        });
 
         ui.horizontal(|ui| {
             if !self.is_recording {
@@ -208,6 +206,8 @@ impl HomePanel {
             }
         });
     }
+
+
 }
 
 struct LogPanel {}

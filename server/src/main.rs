@@ -1,5 +1,7 @@
 #[macro_use] extern crate rocket;
 
+mod sql_parsing;
+
 use rocket::fs::NamedFile;
 use std::path::{Path, PathBuf};
 use std::fs;
@@ -21,6 +23,22 @@ async fn req_settings() -> String {
         .expect("Couldn't read settings");
     print!("{}", content);
     content
+}
+
+#[get("/req/data/latest/<param>")]
+async fn req_data_latest(param: &str) -> String {
+    let content = match param {
+        "acceleration_x" => sql_parsing::latest_acceleration_x().await,
+        "acceleration_y" => sql_parsing::latest_acceleration_y().await,
+        "acceleration_z" => sql_parsing::latest_acceleration_z().await,
+        &_ => Err("bad".into()),
+    };
+    let value = match content {
+        Ok(c) => serde_json::to_string(&c).expect("bad"),
+        Err(why) => panic!("bad: {}", why),
+    };
+    //print!("{}", value);
+    value
 }
 
 #[post("/update", format = "application/json", data = "<value>")]
@@ -51,4 +69,5 @@ fn rocket() -> _ {
         .mount("/", routes![update])
         .mount("/", routes![update_settings])
         .mount("/", routes![req_settings])
+        .mount("/", routes![req_data_latest])
 }

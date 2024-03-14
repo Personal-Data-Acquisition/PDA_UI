@@ -3,4 +3,5 @@
 if wasm-pack build -t web; then
     rm -r ../server/pkg
     cp -r pkg ../server/pkg
+    echo "ui/pkg copied into server/pkg"
 fi
