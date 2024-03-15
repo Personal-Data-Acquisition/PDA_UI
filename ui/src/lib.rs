@@ -1,6 +1,5 @@
 mod utils;
 mod line_drawing;
-mod line_Drawing;
 
 use egui::*;
 use egui_plot::{Legend, Line, Plot, PlotPoints};
@@ -26,7 +25,6 @@ pub enum Provider {
 pub fn main() {
     eframe::WebLogger::init(log::LevelFilter::Debug).ok();
     let web_options = eframe::WebOptions::default();
-    //let app = Box::<MyApp>::default();
 
     spawn_local(async {
         eframe::WebRunner::new()
