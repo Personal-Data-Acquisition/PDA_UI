@@ -2,8 +2,9 @@ use walkers::{
     extras::{Image, Images, Place, Places, Style, Texture},
     Plugin, Projector, Position
 };
-use egui::{Color32, Painter, Pos2, Response, Stroke};
+use egui::{Color32, Painter, Response, Stroke};
 use std::{any, fs::File, vec};
+use log::debug;
 
 const LAT_INDEX: usize = 3;
 const LON_INDEX: usize = 4;
@@ -37,14 +38,17 @@ impl Plugin for GpsLine {
     }
 }
 
+// todo: this needs to be run on the server, then served to the client
 fn last_points() -> Result<Vec<[f64; 2]>, Box<dyn std::error::Error>> {
     let csv = File::open("gps.csv")?;
     let mut reader = csv::ReaderBuilder::new().has_headers(true).from_reader(csv);
     let mut csv_vec: Vec<[String; 13]> = vec![];
 
     for result in reader.deserialize() {
-        let data = result?;
-        csv_vec.push(data);
+        match result {
+            Ok(data) => csv_vec.push(data),
+            Err(why) => debug!("error in last_points: {}", why),
+        };
     }
 
     let last_entries = csv_vec.iter().rev().take(NUM_POINTS).rev();

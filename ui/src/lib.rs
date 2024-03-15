@@ -1,15 +1,26 @@
 mod utils;
+mod line_drawing;
+mod line_Drawing;
 
 use egui::*;
 use egui_plot::{Legend, Line, Plot, PlotPoints};
 use wasm_bindgen::prelude::*;
-use std::{collections::HashMap, default};
+use std::collections::HashMap;
 use log::debug;
 use wasm_bindgen_futures::spawn_local;
 use serde::{Deserialize, Serialize};
 use walkers::{Tiles, Map, MapMemory, Position, sources::OpenStreetMap, TilesManager, HttpOptions};
 
 const TITLE: &str = "Personal Data Acquisition";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Provider {
+    OpenStreetMap,
+    Geoportal,
+    MapboxStreets,
+    MapboxSatellite,
+    LocalTiles,
+}
 
 #[wasm_bindgen]
 pub fn main() {
@@ -22,26 +33,63 @@ pub fn main() {
             .start(
                 TITLE,
                 web_options,
-                Box::new(|cc| Box::new(MyApp::new(cc))),
+                Box::new(|cc| Box::new(MyApp::new(cc.egui_ctx.clone()))),
             )
             .await
             .expect("failed to start eframe");
     });
 }
 
-#[derive(Default)]
 #[wasm_bindgen]
 pub struct MyApp {
     open_panel: Panel,
     home_panel: HomePanel,
     log_panel: LogPanel,
     config_panel: ConfigPanel,
+    map_memory: MapMemory,
+    providers: HashMap<Provider, Box<dyn TilesManager + Send>>,
+}
+
+impl Default for MyApp {
+    fn default() -> Self {
+        Self {
+            // tiles: Tiles::new(OpenStreetMap, Context::default()),
+            map_memory: MapMemory::default(),
+            open_panel: Panel::default(),
+            home_panel: HomePanel::default(),
+            log_panel: LogPanel::default(),
+            config_panel: ConfigPanel::default(),
+            providers: providers(Context::default()),
+        }
+    }
 }
 
 impl MyApp {
-    pub fn new(_: &eframe::CreationContext<'_>) -> Self {
-        Default::default()
+    fn new(egui_ctx: Context) -> Self {
+        Self {
+            map_memory: MapMemory::default(),
+            open_panel: Panel::default(),
+            home_panel: HomePanel::default(),
+            log_panel: LogPanel::default(),
+            config_panel: ConfigPanel::default(),
+            providers: providers(egui_ctx)
+        }
     }
+}
+
+fn providers(egui_ctx: Context) -> HashMap<Provider, Box<dyn TilesManager + Send>> {
+    let mut providers: HashMap<Provider, Box<dyn TilesManager + Send>> = HashMap::default();
+
+    providers.insert(
+        Provider::OpenStreetMap,
+        Box::new(Tiles::with_options(
+            walkers::sources::OpenStreetMap,
+            http_options(),
+            egui_ctx.to_owned(),
+        )),
+    );  
+
+    providers
 }
 
 impl eframe::App for MyApp {
@@ -55,8 +103,25 @@ impl eframe::App for MyApp {
             ui.separator();
 
             match self.open_panel {
-                Panel::Home => {
-                    self.home_panel.ui(ui);
+                Panel::Home => {      
+                    ScrollArea::vertical()
+                        .auto_shrink([false, false])
+                        .stick_to_bottom(false)
+                        .show(ui, |ui| {
+                            self.home_panel.ui(ui);
+
+                            // let tiles = self.providers.get_mut(&Provider::OpenStreetMap).unwrap().as_mut();
+
+                            // let map = Map::new(
+                            //     Some(tiles),
+                            //     &mut self.map_memory,
+                            //     Position::from_lat_lon(44.56203897286608, -123.28196905234289));
+
+                            // let map = map.with_plugin(line_drawing::GpsLine {});
+
+                            // ui.add_sized([ui.available_width(), 600.0], map);
+                            // zoom(ui, &mut self.map_memory);
+                        });
                 }
                 Panel::Log => {
                     self.log_panel.ui(ui);
@@ -66,6 +131,16 @@ impl eframe::App for MyApp {
                 }
             }
         });
+    }
+}
+
+fn http_options() -> HttpOptions {
+    HttpOptions {
+        cache: if std::env::var("NO_HTTP_CACHE").is_ok() {
+            None
+        } else {
+            Some(".cache".into())
+        },
     }
 }
 
@@ -375,10 +450,10 @@ impl Config {
         accel_sensitivity: f32) -> Self {
             
         Self {
-            temp_enabled: temp_enabled,
-            temp_sensitivity: temp_sensitivity,
-            accel_enabled: accel_enabled,
-            accel_sensitivity: accel_sensitivity,
+            temp_enabled,
+            temp_sensitivity,
+            accel_enabled,
+            accel_sensitivity,
         }
     }
 }
@@ -458,7 +533,7 @@ impl ConfigPanel {
         }
     }
 
-    // Sends config to sever as JSON
+    /// Sends config to sever as JSON
     async fn send_settings_update(config: Config) {
         let client = reqwest_wasm::Client::new();
         let res = client.post("http://127.0.0.1:8000/update/settings")
@@ -470,7 +545,7 @@ impl ConfigPanel {
         debug!("res: {:?}", res);
     }
     
-    // Requests config from server, and pack it into a promise
+    /// Requests config from server, and pack it into a promise
     async fn req_settings() -> Option<String> {
         let client = reqwest_wasm::Client::new();
         let res = match client.get("http://127.0.0.1:8000/req/settings").send().await {
