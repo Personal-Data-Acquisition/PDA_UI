@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8" />
-  <title>Personal Data Acquisition</title>
+    <meta charset="utf-8" />
+    <title>Personal Data Acquisition</title>
 </head>
 
 <style>
@@ -13,12 +13,17 @@
 </style>
 
 <body>
-  <canvas id="Personal Data Acquisition"></canvas>
-  <script type="module">
-      import init, { main } from "./pkg/ui.js";
-      init().then(() => {
-          main();
-      });
-  </script>
+    <canvas id="Personal Data Acquisition"></canvas>
+    <script type="module">
+        import init, { main } from "./pkg/ui.js";
+        // TODO: TEAR THIS HORRIBLE HACK OUT ASAP
+        while (1) {
+            init().then(() => {
+                main();
+            });
+            await new Promise(r => setTimeout(r, 10000));
+            location.reload();
+        }
+    </script>
 </body>
 </html>
