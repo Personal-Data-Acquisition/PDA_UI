@@ -3,3 +3,4 @@ ui/target/.rustc_info.json
 ui/target/CACHEDIR.TAG
 ui/target
 ui/Cargo.lock
+.DS_Store

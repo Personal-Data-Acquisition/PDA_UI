@@ -16,14 +16,9 @@
     <canvas id="Personal Data Acquisition"></canvas>
     <script type="module">
         import init, { main } from "./pkg/ui.js";
-        // TODO: TEAR THIS HORRIBLE HACK OUT ASAP
-        while (1) {
-            init().then(() => {
-                main();
-            });
-            await new Promise(r => setTimeout(r, 10000));
-            location.reload();
-        }
+        init().then(() => {
+            main();
+        });
     </script>
 </body>
 </html>
