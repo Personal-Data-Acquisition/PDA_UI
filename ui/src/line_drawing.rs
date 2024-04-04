@@ -1,15 +1,42 @@
-use walkers::{
-    extras::{Image, Images, Place, Places, Style, Texture},
-    Plugin, Projector, Position
-};
+use walkers::{Plugin, Projector, Position};
 use egui::{Color32, Painter, Response, Stroke};
-use std::{any, fs::File, vec};
 use log::debug;
 
-const LAT_INDEX: usize = 3;
-const LON_INDEX: usize = 4;
 const NUM_POINTS: usize = 15;
-pub struct GpsLine {}
+
+pub struct GpsLine {
+    points: Vec<[f64; 2]>
+}
+
+impl GpsLine {
+    pub async fn req_points() -> Option<Vec<[f64; 2]>> {
+        let client = reqwest_wasm::Client::new();
+        let res = match client.get("http://127.0.0.1:8000/req/last_points".to_owned()).send().await {
+            Err(why) => {
+                debug!("failed to get: {}", why);
+                return None;
+            },
+            Ok(result) => {
+                result
+            },
+        };
+        return match res.json::<Vec<[f64; 2]>>().await {
+            Err(why) => {
+                debug!("failed to parse json: {},", why);
+                None
+            },
+            Ok(result) => {
+                Some(result)
+            }
+        }
+    }
+
+    pub fn new(points: Vec<[f64; 2]>) -> Self {
+        Self {
+            points
+        }
+    }
+}
 
 impl Plugin for GpsLine {
     fn draw(&self,
@@ -20,11 +47,9 @@ impl Plugin for GpsLine {
     ) {
         let stroke = Stroke::new(3.0, Color32::DARK_RED);
 
-        let csv_points = last_points().unwrap();
-
-        let mut prev_point = csv_points[0];
+        let mut prev_point = self.points[0];
         for i in 1..NUM_POINTS {
-            let current_point = csv_points[i];
+            let current_point = self.points[i];
 
             let mut point = Position::from_lat_lon(prev_point[0], prev_point[1]);
             let point1 = projector.project(point).to_pos2();
@@ -36,29 +61,4 @@ impl Plugin for GpsLine {
             prev_point = current_point;
         }
     }
-}
-
-// todo: this needs to be run on the server, then served to the client
-fn last_points() -> Result<Vec<[f64; 2]>, Box<dyn std::error::Error>> {
-    let csv = File::open("gps.csv")?;
-    let mut reader = csv::ReaderBuilder::new().has_headers(true).from_reader(csv);
-    let mut csv_vec: Vec<[String; 13]> = vec![];
-
-    for result in reader.deserialize() {
-        match result {
-            Ok(data) => csv_vec.push(data),
-            Err(why) => debug!("error in last_points: {}", why),
-        };
-    }
-
-    let last_entries = csv_vec.iter().rev().take(NUM_POINTS).rev();
-
-    let mut gps_vec: Vec<[f64; 2]> = vec![];
-    for result in last_entries {
-        let lat: f64 = (&result[LAT_INDEX]).parse().unwrap();
-        let lon: f64 = (&result[LON_INDEX]).parse().unwrap();
-        gps_vec.push([lat, lon]);
-    }
-
-    Ok(gps_vec)
 }

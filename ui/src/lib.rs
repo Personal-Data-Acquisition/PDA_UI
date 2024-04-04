@@ -8,7 +8,8 @@ use std::collections::HashMap;
 use log::debug;
 use wasm_bindgen_futures::spawn_local;
 use serde::{Deserialize, Serialize};
-use walkers::{Tiles, Map, MapMemory, Position, sources::OpenStreetMap, TilesManager, HttpOptions};
+use walkers::{Tiles, Map, MapMemory, Position, TilesManager, HttpOptions};
+use crate::line_drawing::GpsLine;
 
 const TITLE: &str = "Personal Data Acquisition";
 
@@ -46,6 +47,7 @@ pub struct MyApp {
     config_panel: ConfigPanel,
     map_memory: MapMemory,
     providers: HashMap<Provider, Box<dyn TilesManager + Send>>,
+    gps_points: PollableValue<Vec<[f64; 2]>>,
 }
 
 impl Default for MyApp {
@@ -58,6 +60,12 @@ impl Default for MyApp {
             log_panel: LogPanel::default(),
             config_panel: ConfigPanel::default(),
             providers: providers(Context::default()),
+            gps_points: PollableValue::new(
+                Default::default(),
+                poll_promise::Promise::spawn_local(async {
+                    GpsLine::req_points().await
+                })
+            ),
         }
     }
 }
@@ -70,7 +78,13 @@ impl MyApp {
             home_panel: HomePanel::default(),
             log_panel: LogPanel::default(),
             config_panel: ConfigPanel::default(),
-            providers: providers(egui_ctx)
+            providers: providers(egui_ctx),
+            gps_points: PollableValue::new(
+                Default::default(),
+                poll_promise::Promise::spawn_local(async {
+                    GpsLine::req_points().await
+                })
+            ),
         }
     }
 }
@@ -108,17 +122,19 @@ impl eframe::App for MyApp {
                         .show(ui, |ui| {
                             self.home_panel.ui(ui);
 
-                            // let tiles = self.providers.get_mut(&Provider::OpenStreetMap).unwrap().as_mut();
+                            let tiles = self.providers.get_mut(&Provider::OpenStreetMap).unwrap().as_mut();
 
-                            // let map = Map::new(
-                            //     Some(tiles),
-                            //     &mut self.map_memory,
-                            //     Position::from_lat_lon(44.56203897286608, -123.28196905234289));
+                            let mut map = Map::new(
+                                Some(tiles),
+                                &mut self.map_memory,
+                                Position::from_lat_lon(44.56203897286608, -123.28196905234289));
 
-                            // let map = map.with_plugin(line_drawing::GpsLine {});
+                            if self.gps_points.poll() {
+                                map = map.with_plugin(GpsLine::new(self.gps_points.value.clone()));
+                            }
 
-                            // ui.add_sized([ui.available_width(), 600.0], map);
-                            // zoom(ui, &mut self.map_memory);
+                            ui.add_sized([ui.available_width(), 600.0], map);
+                            zoom(ui, &mut self.map_memory);
                         });
                 }
                 Panel::Log => {
