@@ -1,5 +1,8 @@
 #[macro_use] extern crate rocket;
 
+mod sql_parsing;
+mod line_drawing;
+
 use rocket::fs::NamedFile;
 use std::path::{Path, PathBuf};
 use std::fs;
@@ -19,8 +22,48 @@ async fn files(file: PathBuf) -> Option<NamedFile> {
 async fn req_settings() -> String {
     let content = fs::read_to_string("settings.json")
         .expect("Couldn't read settings");
-    print!("{}", content);
     content
+}
+
+#[get("/req/data/latest/<param>")]
+async fn req_data_latest(param: &str) -> String {
+    let content = match param {
+        "acceleration_x" => sql_parsing::latest_acceleration_x().await,
+        "acceleration_y" => sql_parsing::latest_acceleration_y().await,
+        "acceleration_z" => sql_parsing::latest_acceleration_z().await,
+        // todo: more data types
+        &_ => Err("invalid data type for req_data_latest".into()),
+    };
+    let value = match content {
+        Ok(c) => serde_json::to_string(&c).expect("could not convert data to json"),
+        Err(why) => panic!("invalid content: {}", why),
+    };
+    //print!("{}", value);
+    value
+}
+
+#[get("/req/data/full/<param>")]
+async fn req_data_full(param: &str) -> String {
+    let content = match param {
+        "acceleration" => sql_parsing::full_acceleration().await,
+        // todo: more data types
+        &_ => Err("invalid data type for req_data_full".into()),
+    };
+    let value = match content {
+        Ok(c) => serde_json::to_string(&c).expect("could not convert data to json"),
+        Err(why) => panic!("invalid content: {}", why),
+    };
+    value
+}
+
+#[get("/req/last_points")]
+async fn req_last_points() -> String {
+    let content = line_drawing::last_points();
+    let value = match content {
+        Ok(c) => serde_json::to_string(&c).expect("could not convert data to json"),
+        Err(why) => panic!("invalid content: {}", why),
+    };
+    value
 }
 
 #[post("/update", format = "application/json", data = "<value>")]
@@ -51,4 +94,7 @@ fn rocket() -> _ {
         .mount("/", routes![update])
         .mount("/", routes![update_settings])
         .mount("/", routes![req_settings])
+        .mount("/", routes![req_data_latest])
+        .mount("/", routes![req_data_full])
+        .mount("/", routes![req_last_points])
 }
