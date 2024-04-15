@@ -45,27 +45,15 @@ pub struct MyApp {
     home_panel: HomePanel,
     log_panel: LogPanel,
     config_panel: ConfigPanel,
-    map_memory: MapMemory,
-    providers: HashMap<Provider, Box<dyn TilesManager + Send>>,
-    gps_points: PollableValue<Vec<[f64; 2]>>,
 }
 
 impl Default for MyApp {
     fn default() -> Self {
         Self {
-            // tiles: Tiles::new(OpenStreetMap, Context::default()),
-            map_memory: MapMemory::default(),
             open_panel: Panel::default(),
-            home_panel: HomePanel::default(),
+            home_panel: HomePanel::new(Context::default()),
             log_panel: LogPanel::default(),
             config_panel: ConfigPanel::default(),
-            providers: providers(Context::default()),
-            gps_points: PollableValue::new(
-                Default::default(),
-                poll_promise::Promise::spawn_local(async {
-                    GpsLine::req_points().await
-                })
-            ),
         }
     }
 }
@@ -73,18 +61,10 @@ impl Default for MyApp {
 impl MyApp {
     fn new(egui_ctx: Context) -> Self {
         Self {
-            map_memory: MapMemory::default(),
             open_panel: Panel::default(),
-            home_panel: HomePanel::default(),
+            home_panel: HomePanel::new(egui_ctx),
             log_panel: LogPanel::default(),
             config_panel: ConfigPanel::default(),
-            providers: providers(egui_ctx),
-            gps_points: PollableValue::new(
-                Default::default(),
-                poll_promise::Promise::spawn_local(async {
-                    GpsLine::req_points().await
-                })
-            ),
         }
     }
 }
@@ -120,21 +100,7 @@ impl eframe::App for MyApp {
                         .auto_shrink([false, false])
                         .stick_to_bottom(false)
                         .show(ui, |ui| {
-                            self.home_panel.ui(ui);
-
-                            let tiles = self.providers.get_mut(&Provider::OpenStreetMap).unwrap().as_mut();
-
-                            let mut map = Map::new(
-                                Some(tiles),
-                                &mut self.map_memory,
-                                Position::from_lat_lon(44.56203897286608, -123.28196905234289));
-
-                            if self.gps_points.poll() {
-                                map = map.with_plugin(GpsLine::new(self.gps_points.value.clone()));
-                            }
-
-                            ui.add_sized([ui.available_width(), 600.0], map);
-                            zoom(ui, &mut self.map_memory);
+                            self.home_panel.ui(ui);                            
                         });
                 }
                 Panel::Log => {
@@ -228,10 +194,13 @@ pub struct HomePanel {
     accel_x: PollableValue<Vec<[f64; 2]>>,
     accel_y: PollableValue<Vec<[f64; 2]>>,
     accel_z: PollableValue<Vec<[f64; 2]>>,
+    map_memory: MapMemory,
+    providers: HashMap<Provider, Box<dyn TilesManager + Send>>,
+    gps_points: PollableValue<Vec<[f64; 2]>>,
 }
 
-impl Default for HomePanel {
-    fn default() -> Self {
+impl HomePanel {
+    fn new(egui_ctx: Context) -> Self {
         Self {
             is_recording: false,
             accel_x: PollableValue::new(
@@ -252,11 +221,17 @@ impl Default for HomePanel {
                     HomePanel::req_data_latest("acceleration_z").await
                 })
             ),
+            providers: providers(egui_ctx),
+            gps_points: PollableValue::new(
+                Default::default(),
+                poll_promise::Promise::spawn_local(async {
+                    GpsLine::req_points().await
+                })
+            ),
+            map_memory: MapMemory::default(),
         }
     }
-}
 
-impl HomePanel {
     fn ui(&mut self, ui: &mut Ui) {
         let plot_accel_x = Plot::new("Acceleration X")
             .legend(Legend::default())
@@ -310,6 +285,20 @@ impl HomePanel {
                 }
             }
         });
+
+        let tiles = self.providers.get_mut(&Provider::OpenStreetMap).unwrap().as_mut();
+
+        let mut map = Map::new(
+            Some(tiles),
+            &mut self.map_memory,
+            Position::from_lat_lon(44.56203897286608, -123.28196905234289));
+
+        if self.gps_points.poll() {
+            map = map.with_plugin(GpsLine::new(self.gps_points.value.clone()));
+        }
+
+        ui.add_sized([ui.available_width(), 600.0], map);
+        zoom(ui, &mut self.map_memory);
     }
 
     /// Requests data of type `Option<Vec<[f64; 2]>>` from the server
