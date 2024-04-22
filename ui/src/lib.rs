@@ -10,6 +10,7 @@ use wasm_bindgen_futures::spawn_local;
 use serde::{Deserialize, Serialize};
 use walkers::{Tiles, Map, MapMemory, Position, TilesManager, HttpOptions};
 use crate::line_drawing::GpsLine;
+use crate::utils::PollableValue;
 
 const TITLE: &str = "Personal Data Acquisition";
 
@@ -185,43 +186,6 @@ pub async fn send_update(body: &HashMap<&str, &str>, url: &str) {
 
 // Panels ---------------------------------------
 
-/// Wrapper for a Promise. Can be polled to fill in its value.
-pub struct PollableValue<T: 'static + std::marker::Send + Clone> {
-    is_ready: bool,
-    value: T,
-    promise: poll_promise::Promise<Option<T>>,
-}
-
-impl<T: std::marker::Send + 'static + Clone> PollableValue<T> {
-
-    /// default_value: value to be used before poll is complete
-    /// 
-    /// promise: a Promise that will be polled
-    fn new(default_value: T, promise: poll_promise::Promise<Option<T>>) -> PollableValue<T> {
-        Self {
-            is_ready: false,
-            value: default_value,
-            promise,
-        }
-    }
-
-    /// Polls promise if value is not ready
-    ///
-    /// returns: true if value ready, false otherwise
-    fn poll(&mut self) -> bool {
-        if self.is_ready { return true }
-
-        if let Some(result) = self.promise.ready() {
-            self.value = <std::option::Option<T> as Clone>::clone(&result).expect("bad value in PollableValue");
-            self.is_ready = true;
-        } else {
-            self.is_ready = false;
-        }
-
-        self.is_ready
-    }
-}
-
 #[wasm_bindgen]
 pub struct HomePanel {
     is_recording: bool,
@@ -269,21 +233,21 @@ impl HomePanel {
             .height(200.0);
 
         if self.accel_x.poll() {
-            let line = Line::new(PlotPoints::from(self.accel_x.value.clone())).name("Acceleration X");
+            let line = Line::new(PlotPoints::from(self.accel_x.get_value().clone())).name("Acceleration X");
             plot_accel_x.show(ui, |plot_ui| {
                 plot_ui.line(line);
             });
         }
 
         if self.accel_y.poll() {
-            let line = Line::new(PlotPoints::from(self.accel_y.value.clone())).name("Acceleration Y");
+            let line = Line::new(PlotPoints::from(self.accel_y.get_value().clone())).name("Acceleration Y");
             plot_accel_y.show(ui, |plot_ui| {
                 plot_ui.line(line);
             });
         }
 
         if self.accel_z.poll() {
-            let line = Line::new(PlotPoints::from(self.accel_z.value.clone())).name("Acceleration Z");
+            let line = Line::new(PlotPoints::from(self.accel_z.get_value().clone())).name("Acceleration Z");
             plot_accel_z.show(ui, |plot_ui| {
                 plot_ui.line(line);
             });
@@ -391,7 +355,7 @@ impl LogPanel {
                 let row_height = 18.0;
 
                 if self.accel.poll() {
-                    let table_data = self.accel.value.clone();
+                    let table_data = self.accel.get_value().clone();
                     for entry in table_data {
                         body.row(row_height, |mut row| {
                             row.col(|ui| {
