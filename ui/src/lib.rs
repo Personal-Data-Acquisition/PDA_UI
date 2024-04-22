@@ -131,7 +131,7 @@ impl eframe::App for MyApp {
                                 Position::from_lat_lon(44.56203897286608, -123.28196905234289));
 
                             if self.gps_points.poll() {
-                                map = map.with_plugin(GpsLine::new(self.gps_points.value.clone()));
+                                map = map.with_plugin(GpsLine::new(self.gps_points.get_value().clone()));
                             }
 
                             ui.add_sized([ui.available_width(), 600.0], map);
