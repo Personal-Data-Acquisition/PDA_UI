@@ -1,3 +1,5 @@
+use crate::debug;
+
 pub fn set_panic_hook() {
     // When the `console_error_panic_hook` feature is enabled, we can call the
     // `set_panic_hook` function at least once during initialization, and then
@@ -14,7 +16,6 @@ pub struct PollableValue<T: 'static + std::marker::Send + Clone> {
     is_ready: bool,
     pub value: T,
     promise: poll_promise::Promise<Option<T>>,
-    time: u16,
 }
 
 impl<T: std::marker::Send + 'static + Clone> PollableValue<T> {
@@ -27,7 +28,6 @@ impl<T: std::marker::Send + 'static + Clone> PollableValue<T> {
             is_ready: false,
             value: default_value,
             promise,
-            time: 60,
         }
     }
 

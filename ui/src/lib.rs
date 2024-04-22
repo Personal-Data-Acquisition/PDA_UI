@@ -84,7 +84,7 @@ impl MyApp {
                 Default::default(),
                 poll_promise::Promise::spawn_local(async {
                     GpsLine::req_points().await
-                })
+                }),
             ),
         }
     }
@@ -189,15 +189,19 @@ pub async fn send_update(body: &HashMap<&str, &str>, url: &str) {
 #[wasm_bindgen]
 pub struct HomePanel {
     is_recording: bool,
-    accel_x: PollableValue<Vec<[f64; 2]>>,
-    accel_y: PollableValue<Vec<[f64; 2]>>,
-    accel_z: PollableValue<Vec<[f64; 2]>>,
+    data: HomePanelData,
 }
 
-impl Default for HomePanel {
+struct HomePanelData {
+    time: u16,
+    pub accel_x: PollableValue<Vec<[f64; 2]>>,
+    pub accel_y: PollableValue<Vec<[f64; 2]>>,
+    pub accel_z: PollableValue<Vec<[f64; 2]>>,
+}
+
+impl Default for HomePanelData {
     fn default() -> Self {
         Self {
-            is_recording: false,
             accel_x: PollableValue::new(
                 Default::default(), 
                 poll_promise::Promise::spawn_local(async {
@@ -216,6 +220,16 @@ impl Default for HomePanel {
                     HomePanel::req_data_latest("acceleration_z").await
                 })
             ),
+            time: 60,
+        }
+    }
+}
+
+impl Default for HomePanel {
+    fn default() -> Self {
+        Self {
+            is_recording: false,
+            data: HomePanelData::default(),
         }
     }
 }
@@ -232,25 +246,31 @@ impl HomePanel {
             .legend(Legend::default())
             .height(200.0);
 
-        if self.accel_x.poll() {
-            let line = Line::new(PlotPoints::from(self.accel_x.value.clone())).name("Acceleration X");
+        if self.data.accel_x.poll() {
+            let line = Line::new(PlotPoints::from(self.data.accel_x.value.clone())).name("Acceleration X");
             plot_accel_x.show(ui, |plot_ui| {
                 plot_ui.line(line);
             });
         }
 
-        if self.accel_y.poll() {
-            let line = Line::new(PlotPoints::from(self.accel_y.value.clone())).name("Acceleration Y");
+        if self.data.accel_y.poll() {
+            let line = Line::new(PlotPoints::from(self.data.accel_y.value.clone())).name("Acceleration Y");
             plot_accel_y.show(ui, |plot_ui| {
                 plot_ui.line(line);
             });
         }
 
-        if self.accel_z.poll() {
-            let line = Line::new(PlotPoints::from(self.accel_z.value.clone())).name("Acceleration Z");
+        if self.data.accel_z.poll() {
+            let line = Line::new(PlotPoints::from(self.data.accel_z.value.clone())).name("Acceleration Z");
             plot_accel_z.show(ui, |plot_ui| {
                 plot_ui.line(line);
             });
+            // todo: account for other pollables
+            // todo: prevent reseting scroll amount
+            self.data.time -= 1;
+            if self.data.time == 0 {
+                self.data = HomePanelData::default();
+            }
         }
 
         ui.horizontal(|ui| {
@@ -312,7 +332,7 @@ impl Default for LogPanel {
                 Default::default(), 
                 poll_promise::Promise::spawn_local(async {
                     LogPanel::req_data_full("acceleration").await
-                })
+                }),
             ),
         }
     }
