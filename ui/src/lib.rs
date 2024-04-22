@@ -131,7 +131,7 @@ impl eframe::App for MyApp {
                                 Position::from_lat_lon(44.56203897286608, -123.28196905234289));
 
                             if self.gps_points.poll() {
-                                map = map.with_plugin(GpsLine::new(self.gps_points.get_value().clone()));
+                                map = map.with_plugin(GpsLine::new(self.gps_points.value.clone()));
                             }
 
                             ui.add_sized([ui.available_width(), 600.0], map);
@@ -233,21 +233,21 @@ impl HomePanel {
             .height(200.0);
 
         if self.accel_x.poll() {
-            let line = Line::new(PlotPoints::from(self.accel_x.get_value().clone())).name("Acceleration X");
+            let line = Line::new(PlotPoints::from(self.accel_x.value.clone())).name("Acceleration X");
             plot_accel_x.show(ui, |plot_ui| {
                 plot_ui.line(line);
             });
         }
 
         if self.accel_y.poll() {
-            let line = Line::new(PlotPoints::from(self.accel_y.get_value().clone())).name("Acceleration Y");
+            let line = Line::new(PlotPoints::from(self.accel_y.value.clone())).name("Acceleration Y");
             plot_accel_y.show(ui, |plot_ui| {
                 plot_ui.line(line);
             });
         }
 
         if self.accel_z.poll() {
-            let line = Line::new(PlotPoints::from(self.accel_z.get_value().clone())).name("Acceleration Z");
+            let line = Line::new(PlotPoints::from(self.accel_z.value.clone())).name("Acceleration Z");
             plot_accel_z.show(ui, |plot_ui| {
                 plot_ui.line(line);
             });
@@ -355,7 +355,7 @@ impl LogPanel {
                 let row_height = 18.0;
 
                 if self.accel.poll() {
-                    let table_data = self.accel.get_value().clone();
+                    let table_data = self.accel.value.clone();
                     for entry in table_data {
                         body.row(row_height, |mut row| {
                             row.col(|ui| {

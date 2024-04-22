@@ -12,8 +12,9 @@ pub fn set_panic_hook() {
 /// Wrapper for a Promise. Can be polled to fill in its value.
 pub struct PollableValue<T: 'static + std::marker::Send + Clone> {
     is_ready: bool,
-    value: T,
+    pub value: T,
     promise: poll_promise::Promise<Option<T>>,
+    time: u16,
 }
 
 impl<T: std::marker::Send + 'static + Clone> PollableValue<T> {
@@ -26,6 +27,7 @@ impl<T: std::marker::Send + 'static + Clone> PollableValue<T> {
             is_ready: false,
             value: default_value,
             promise,
+            time: 60,
         }
     }
 
@@ -43,9 +45,5 @@ impl<T: std::marker::Send + 'static + Clone> PollableValue<T> {
         }
 
         self.is_ready
-    }
-
-    pub fn get_value(self) -> T {
-        self.value
     }
 }
