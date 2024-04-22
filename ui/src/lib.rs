@@ -130,8 +130,8 @@ impl eframe::App for MyApp {
                                 &mut self.map_memory,
                                 Position::from_lat_lon(44.56203897286608, -123.28196905234289));
 
-                            if self.gps_points.poll() {
-                                map = map.with_plugin(GpsLine::new(self.gps_points.value.clone()));
+                            if let Some(res) = self.gps_points.poll() {
+                                map = map.with_plugin(GpsLine::new(res));
                             }
 
                             ui.add_sized([ui.available_width(), 600.0], map);
@@ -199,23 +199,26 @@ struct HomePanelData {
     pub accel_z: PollableValue<Vec<[f64; 2]>>,
 }
 
-impl Default for HomePanelData {
-    fn default() -> Self {
+impl HomePanelData {
+    fn new(
+        default_accel_x: Option<Vec<[f64; 2]>>, 
+        default_accel_y: Option<Vec<[f64; 2]>>, 
+        default_accel_z: Option<Vec<[f64; 2]>>) -> Self {
         Self {
             accel_x: PollableValue::new(
-                Default::default(), 
+                default_accel_x,
                 poll_promise::Promise::spawn_local(async {
                     HomePanel::req_data_latest("acceleration_x").await
                 })
             ),
             accel_y: PollableValue::new(
-                Default::default(), 
+                default_accel_y,
                 poll_promise::Promise::spawn_local(async {
                     HomePanel::req_data_latest("acceleration_y").await
                 })
             ),
             accel_z: PollableValue::new(
-                Default::default(), 
+                default_accel_z,
                 poll_promise::Promise::spawn_local(async {
                     HomePanel::req_data_latest("acceleration_z").await
                 })
@@ -229,7 +232,10 @@ impl Default for HomePanel {
     fn default() -> Self {
         Self {
             is_recording: false,
-            data: HomePanelData::default(),
+            data: HomePanelData::new(
+                Default::default(), 
+                Default::default(), 
+                Default::default()),
         }
     }
 }
@@ -246,30 +252,33 @@ impl HomePanel {
             .legend(Legend::default())
             .height(200.0);
 
-        if self.data.accel_x.poll() {
-            let line = Line::new(PlotPoints::from(self.data.accel_x.value.clone())).name("Acceleration X");
+        if let Some(res) = self.data.accel_x.poll() {
+            let line = Line::new(PlotPoints::from(res)).name("Acceleration X");
             plot_accel_x.show(ui, |plot_ui| {
                 plot_ui.line(line);
             });
         }
 
-        if self.data.accel_y.poll() {
-            let line = Line::new(PlotPoints::from(self.data.accel_y.value.clone())).name("Acceleration Y");
+        if let Some(res) = self.data.accel_y.poll() {
+            let line = Line::new(PlotPoints::from(res)).name("Acceleration Y");
             plot_accel_y.show(ui, |plot_ui| {
                 plot_ui.line(line);
             });
         }
 
-        if self.data.accel_z.poll() {
-            let line = Line::new(PlotPoints::from(self.data.accel_z.value.clone())).name("Acceleration Z");
+        if let Some(res) = self.data.accel_z.poll() {
+            let line = Line::new(PlotPoints::from(res)).name("Acceleration Z");
             plot_accel_z.show(ui, |plot_ui| {
                 plot_ui.line(line);
             });
             // todo: account for other pollables
-            // todo: prevent reseting scroll amount
             self.data.time -= 1;
             if self.data.time == 0 {
-                self.data = HomePanelData::default();
+                self.data = HomePanelData::new(
+                    self.data.accel_x.value.clone(),
+                    self.data.accel_y.value.clone(),
+                    self.data.accel_z.value.clone(),
+                );
             }
         }
 
@@ -374,8 +383,7 @@ impl LogPanel {
             .body(|mut body| {
                 let row_height = 18.0;
 
-                if self.accel.poll() {
-                    let table_data = self.accel.value.clone();
+                if let Some(table_data) = self.accel.poll() {
                     for entry in table_data {
                         body.row(row_height, |mut row| {
                             row.col(|ui| {

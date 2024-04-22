@@ -13,8 +13,7 @@ pub fn set_panic_hook() {
 
 /// Wrapper for a Promise. Can be polled to fill in its value.
 pub struct PollableValue<T: 'static + std::marker::Send + Clone> {
-    is_ready: bool,
-    pub value: T,
+    pub value: Option<T>,
     promise: poll_promise::Promise<Option<T>>,
 }
 
@@ -23,9 +22,8 @@ impl<T: std::marker::Send + 'static + Clone> PollableValue<T> {
     /// default_value: value to be used before poll is complete
     /// 
     /// promise: a Promise that will be polled
-    pub fn new(default_value: T, promise: poll_promise::Promise<Option<T>>) -> PollableValue<T> {
+    pub fn new(default_value: Option<T>, promise: poll_promise::Promise<Option<T>>) -> PollableValue<T> {
         Self {
-            is_ready: false,
             value: default_value,
             promise,
         }
@@ -33,17 +31,11 @@ impl<T: std::marker::Send + 'static + Clone> PollableValue<T> {
 
     /// Polls promise if value is not ready
     ///
-    /// returns: true if value ready, false otherwise
-    pub fn poll(&mut self) -> bool {
-        if self.is_ready { return true }
-
+    /// returns: true if value ready or default exists, false otherwise
+    pub fn poll(&mut self) -> Option<T> {
         if let Some(result) = self.promise.ready() {
-            self.value = <std::option::Option<T> as Clone>::clone(&result).expect("bad value in PollableValue");
-            self.is_ready = true;
-        } else {
-            self.is_ready = false;
-        }
-
-        self.is_ready
+            self.value = Some(<std::option::Option<T> as Clone>::clone(&result).expect("bad value in PollableValue"));
+        } 
+        self.value.clone()
     }
 }
