@@ -29,9 +29,9 @@ impl<T: std::marker::Send + 'static + Clone> PollableValue<T> {
         }
     }
 
-    /// Polls promise if value is not ready
+    /// Polls the promise and returns it's value if ready
     ///
-    /// returns: true if value ready or default exists, false otherwise
+    /// returns: value if ready or default exists, none otherwise
     pub fn poll(&mut self) -> Option<T> {
         if let Some(result) = self.promise.ready() {
             self.value = Some(<std::option::Option<T> as Clone>::clone(&result).expect("bad value in PollableValue"));
