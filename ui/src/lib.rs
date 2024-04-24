@@ -13,6 +13,13 @@ use crate::line_drawing::GpsLine;
 use crate::utils::PollableValue;
 
 const TITLE: &str = "Personal Data Acquisition";
+// all of the auto-refreshing data on the home panel
+// displayed from first to last
+const HOME_PANEL_KEYS: [&str; 3] = [
+    "acceleration_x",
+    "acceleration_y",
+    "acceleration_z",
+];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Provider {
@@ -192,37 +199,27 @@ pub struct HomePanel {
     data: HomePanelData,
 }
 
+/// refers to all of the auto-refreshing data on the home panel
 struct HomePanelData {
     time: u16,
-    pub accel_x: PollableValue<Vec<[f64; 2]>>,
-    pub accel_y: PollableValue<Vec<[f64; 2]>>,
-    pub accel_z: PollableValue<Vec<[f64; 2]>>,
+    pub data: HashMap<String, PollableValue<Vec<[f64; 2]>>>,
 }
 
 impl HomePanelData {
     fn new(
-        default_accel_x: Option<Vec<[f64; 2]>>, 
-        default_accel_y: Option<Vec<[f64; 2]>>, 
-        default_accel_z: Option<Vec<[f64; 2]>>) -> Self {
+        defaults: HashMap<String, Option<Vec<[f64; 2]>>>) -> Self {
+        let mut data: HashMap<String, PollableValue<Vec<[f64; 2]>>> = HashMap::new();
+        for key in HOME_PANEL_KEYS {
+            let default = defaults.get(key).expect("missing key in HomePanelData defaults").clone();
+            data.insert(key.to_string(), PollableValue::new(
+                default,
+                poll_promise::Promise::spawn_local(async move {
+                    HomePanel::req_data_latest(key).await   
+                })  
+            ));
+        }
         Self {
-            accel_x: PollableValue::new(
-                default_accel_x,
-                poll_promise::Promise::spawn_local(async {
-                    HomePanel::req_data_latest("acceleration_x").await
-                })
-            ),
-            accel_y: PollableValue::new(
-                default_accel_y,
-                poll_promise::Promise::spawn_local(async {
-                    HomePanel::req_data_latest("acceleration_y").await
-                })
-            ),
-            accel_z: PollableValue::new(
-                default_accel_z,
-                poll_promise::Promise::spawn_local(async {
-                    HomePanel::req_data_latest("acceleration_z").await
-                })
-            ),
+            data,
             time: 60,
         }
     }
@@ -230,55 +227,47 @@ impl HomePanelData {
 
 impl Default for HomePanel {
     fn default() -> Self {
+        let mut defaults: HashMap<String, std::option::Option<std::vec::Vec<[f64; 2]>>> = HashMap::new();
+        for key in HOME_PANEL_KEYS {
+            defaults.insert(key.to_string(), None);
+        }
         Self {
             is_recording: false,
-            data: HomePanelData::new(
-                Default::default(), 
-                Default::default(), 
-                Default::default()),
+            data: HomePanelData::new(defaults),
         }
     }
 }
 
 impl HomePanel {
     fn ui(&mut self, ui: &mut Ui) {
-        let plot_accel_x = Plot::new("Acceleration X")
-            .legend(Legend::default())
-            .height(200.0);
-        let plot_accel_y = Plot::new("Acceleration Y")
-            .legend(Legend::default())
-            .height(200.0);
-        let plot_accel_z = Plot::new("Acceleration Z")
-            .legend(Legend::default())
-            .height(200.0);
-
-        if let Some(res) = self.data.accel_x.poll() {
-            let line = Line::new(PlotPoints::from(res)).name("Acceleration X");
-            plot_accel_x.show(ui, |plot_ui| {
-                plot_ui.line(line);
-            });
+        let mut ready_count = 0;
+        // graphs showing auto-refreshing data
+        // keys should be provided in HOME_PANEL_KEYS
+        for key in HOME_PANEL_KEYS {
+            let val: &mut PollableValue<std::vec::Vec<[f64; 2]>> = self.data.data.get_mut(key).expect("missing key in HomePanelData");
+            if let Some(res) = val.poll() {
+                ready_count += 1;
+                let plot = Plot::new(key)
+                    .legend(Legend::default())
+                    .height(200.0);
+                let line = Line::new(PlotPoints::from(res)).name(key);
+                plot.show(ui, |plot_ui| {
+                    plot_ui.line(line);
+                });
+            }
         }
-
-        if let Some(res) = self.data.accel_y.poll() {
-            let line = Line::new(PlotPoints::from(res)).name("Acceleration Y");
-            plot_accel_y.show(ui, |plot_ui| {
-                plot_ui.line(line);
-            });
-        }
-
-        if let Some(res) = self.data.accel_z.poll() {
-            let line = Line::new(PlotPoints::from(res)).name("Acceleration Z");
-            plot_accel_z.show(ui, |plot_ui| {
-                plot_ui.line(line);
-            });
-            // todo: account for other pollables
+        // if all have been recieved, count down from 60 to refresh
+        if ready_count == HOME_PANEL_KEYS.len() {
             self.data.time -= 1;
             if self.data.time == 0 {
+                let mut defaults: HashMap<String, std::option::Option<std::vec::Vec<[f64; 2]>>> = HashMap::new();
+                for key in HOME_PANEL_KEYS {
+                    let val: &mut PollableValue<std::vec::Vec<[f64; 2]>> = self.data.data.get_mut(key).expect("missing key in HomePanelData");
+                    defaults.insert(key.to_string(), val.poll());
+                }
                 self.data = HomePanelData::new(
-                    self.data.accel_x.value.clone(),
-                    self.data.accel_y.value.clone(),
-                    self.data.accel_z.value.clone(),
-                );
+                    defaults
+                )
             }
         }
 
