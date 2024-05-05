@@ -15,10 +15,11 @@ use crate::utils::PollableValue;
 const TITLE: &str = "Personal Data Acquisition";
 // all of the auto-refreshing data on the home panel
 // displayed from first to last
-const HOME_PANEL_KEYS: [&str; 3] = [
+const DATA_KEYS: [&str; 4] = [
     "acceleration_x",
     "acceleration_y",
     "acceleration_z",
+    "acceleration_full",
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -206,10 +207,9 @@ struct HomePanelData {
 }
 
 impl HomePanelData {
-    fn new(
-        defaults: HashMap<String, Option<Vec<[f64; 2]>>>) -> Self {
+    fn new(defaults: HashMap<String, Option<Vec<[f64; 2]>>>) -> Self {
         let mut data: HashMap<String, PollableValue<Vec<[f64; 2]>>> = HashMap::new();
-        for key in HOME_PANEL_KEYS {
+        for key in DATA_KEYS {
             let default = defaults.get(key).expect("missing key in HomePanelData defaults").clone();
             data.insert(key.to_string(), PollableValue::new(
                 default,
@@ -228,7 +228,7 @@ impl HomePanelData {
 impl Default for HomePanel {
     fn default() -> Self {
         let mut defaults: HashMap<String, std::option::Option<std::vec::Vec<[f64; 2]>>> = HashMap::new();
-        for key in HOME_PANEL_KEYS {
+        for key in DATA_KEYS {
             defaults.insert(key.to_string(), None);
         }
         Self {
@@ -243,7 +243,7 @@ impl HomePanel {
         let mut ready_count = 0;
         // graphs showing auto-refreshing data
         // keys should be provided in HOME_PANEL_KEYS
-        for key in HOME_PANEL_KEYS {
+        for key in DATA_KEYS {
             let val: &mut PollableValue<std::vec::Vec<[f64; 2]>> = self.data.data.get_mut(key).expect("missing key in HomePanelData");
             if let Some(res) = val.poll() {
                 ready_count += 1;
@@ -257,12 +257,13 @@ impl HomePanel {
             }
         }
         // if all have been recieved, count down from 60 to refresh
-        if ready_count == HOME_PANEL_KEYS.len() {
+        if ready_count == DATA_KEYS.len() {
             self.data.time -= 1;
             if self.data.time == 0 {
-                let mut defaults: HashMap<String, std::option::Option<std::vec::Vec<[f64; 2]>>> = HashMap::new();
-                for key in HOME_PANEL_KEYS {
-                    let val: &mut PollableValue<std::vec::Vec<[f64; 2]>> = self.data.data.get_mut(key).expect("missing key in HomePanelData");
+                let mut defaults: HashMap<String, std::option::Option<Vec<[f64; 2]>>> = HashMap::new();
+                for key in DATA_KEYS {
+                    let val: &mut PollableValue<Vec<[f64; 2]>> = self.data.data.get_mut(key)
+                        .expect("missing key in HomePanelData");
                     defaults.insert(key.to_string(), val.poll());
                 }
                 self.data = HomePanelData::new(
@@ -318,20 +319,33 @@ impl HomePanel {
     }
 }
 
+struct LogPanelData {
+    data: PollableValue<Vec<[String; 5]>>,   
+    time: u16,
+}
+
+impl LogPanelData {
+    fn new(default: Option<Vec<[String; 5]>>) -> Self {
+        Self {
+            data: PollableValue::new(
+                default,
+                poll_promise::Promise::spawn_local(async move {
+                    LogPanel::req_data_full("acceleration").await // TEMP, TODO genericize this
+                })),
+            time: 60,
+        }
+    }
+}
+
 #[wasm_bindgen]
 pub struct LogPanel {
-    accel: PollableValue<Vec<[String; 5]>>,
+    data: LogPanelData,
 }
 
 impl Default for LogPanel {
     fn default() -> Self {
         Self {
-            accel: PollableValue::new(
-                Default::default(), 
-                poll_promise::Promise::spawn_local(async {
-                    LogPanel::req_data_full("acceleration").await
-                }),
-            ),
+            data: LogPanelData::new(None)
         }
     }
 }
@@ -372,7 +386,7 @@ impl LogPanel {
             .body(|mut body| {
                 let row_height = 18.0;
 
-                if let Some(table_data) = self.accel.poll() {
+                if let Some(table_data) = self.data.data.poll() {
                     for entry in table_data {
                         body.row(row_height, |mut row| {
                             row.col(|ui| {
@@ -399,6 +413,13 @@ impl LogPanel {
                                 );
                             });
                         });
+                    }
+                    // update timer
+                    self.data.time -= 1;
+                    if self.data.time == 0 {
+                        self.data = LogPanelData::new(
+                            self.data.data.value.clone()
+                        )
                     }
                 }
             });

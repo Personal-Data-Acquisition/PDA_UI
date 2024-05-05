@@ -89,6 +89,7 @@ async fn update_settings(value: &str) -> Option<&str> {
 #[launch]
 fn rocket() -> _ {
     rocket::build()
+        .configure(rocket::Config::figment().merge(("port", 8000)))
         .mount("/", routes![index])
         .mount("/", routes![files])
         .mount("/", routes![update])
