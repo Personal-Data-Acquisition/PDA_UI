@@ -15,11 +15,11 @@ use crate::utils::PollableValue;
 const TITLE: &str = "Personal Data Acquisition";
 // all of the auto-refreshing data on the home panel
 // displayed from first to last
-const DATA_KEYS: [&str; 4] = [
+// TODO: maybe try something better?
+const HOME_PANEL_KEYS: [&str; 3] = [
     "acceleration_x",
     "acceleration_y",
     "acceleration_z",
-    "acceleration_full",
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -129,7 +129,7 @@ impl eframe::App for MyApp {
                         .auto_shrink([false, false])
                         .stick_to_bottom(false)
                         .show(ui, |ui| {
-                            self.home_panel.ui(ui);
+                            self.home_panel.ui(ui, &self.config_panel.config);
 
                             let tiles = self.providers.get_mut(&Provider::OpenStreetMap).unwrap().as_mut();
 
@@ -147,7 +147,7 @@ impl eframe::App for MyApp {
                         });
                 }
                 Panel::Log => {
-                    self.log_panel.ui(ui);
+                    self.log_panel.ui(ui, &self.config_panel.config);
                 }
                 Panel::Config => {
                     self.config_panel.ui(ui);
@@ -209,7 +209,7 @@ struct HomePanelData {
 impl HomePanelData {
     fn new(defaults: HashMap<String, Option<Vec<[f64; 2]>>>) -> Self {
         let mut data: HashMap<String, PollableValue<Vec<[f64; 2]>>> = HashMap::new();
-        for key in DATA_KEYS {
+        for key in HOME_PANEL_KEYS {
             let default = defaults.get(key).expect("missing key in HomePanelData defaults").clone();
             data.insert(key.to_string(), PollableValue::new(
                 default,
@@ -220,7 +220,7 @@ impl HomePanelData {
         }
         Self {
             data,
-            time: 60,
+            time: 0,
         }
     }
 }
@@ -228,7 +228,7 @@ impl HomePanelData {
 impl Default for HomePanel {
     fn default() -> Self {
         let mut defaults: HashMap<String, std::option::Option<std::vec::Vec<[f64; 2]>>> = HashMap::new();
-        for key in DATA_KEYS {
+        for key in HOME_PANEL_KEYS {
             defaults.insert(key.to_string(), None);
         }
         Self {
@@ -239,11 +239,11 @@ impl Default for HomePanel {
 }
 
 impl HomePanel {
-    fn ui(&mut self, ui: &mut Ui) {
+    fn ui(&mut self, ui: &mut Ui, config: &Config) {
         let mut ready_count = 0;
         // graphs showing auto-refreshing data
         // keys should be provided in HOME_PANEL_KEYS
-        for key in DATA_KEYS {
+        for key in HOME_PANEL_KEYS {
             let val: &mut PollableValue<std::vec::Vec<[f64; 2]>> = self.data.data.get_mut(key).expect("missing key in HomePanelData");
             if let Some(res) = val.poll() {
                 ready_count += 1;
@@ -256,12 +256,14 @@ impl HomePanel {
                 });
             }
         }
-        // if all have been recieved, count down from 60 to refresh
-        if ready_count == DATA_KEYS.len() {
-            self.data.time -= 1;
-            if self.data.time == 0 {
+        // ui.heading(format!("ready count: {ready_count}"));
+        // ui.heading(format!("time: {t}", t=self.data.time));
+        // if all have been recieved, count up to refresh_time to refresh
+        if ready_count == HOME_PANEL_KEYS.len() {
+            self.data.time += 1;
+            if self.data.time == (config.refresh_time * 60.0) as u16 {
                 let mut defaults: HashMap<String, std::option::Option<Vec<[f64; 2]>>> = HashMap::new();
-                for key in DATA_KEYS {
+                for key in HOME_PANEL_KEYS {
                     let val: &mut PollableValue<Vec<[f64; 2]>> = self.data.data.get_mut(key)
                         .expect("missing key in HomePanelData");
                     defaults.insert(key.to_string(), val.poll());
@@ -332,7 +334,7 @@ impl LogPanelData {
                 poll_promise::Promise::spawn_local(async move {
                     LogPanel::req_data_full("acceleration").await // TEMP, TODO genericize this
                 })),
-            time: 60,
+            time: 0,
         }
     }
 }
@@ -351,7 +353,7 @@ impl Default for LogPanel {
 }
 
 impl LogPanel {
-    fn ui(&mut self, ui: &mut Ui) {
+    fn ui(&mut self, ui: &mut Ui, config: &Config) {
         use egui_extras::{Column, TableBuilder};
 
         let table = TableBuilder::new(ui)
@@ -415,8 +417,8 @@ impl LogPanel {
                         });
                     }
                     // update timer
-                    self.data.time -= 1;
-                    if self.data.time == 0 {
+                    self.data.time += 1;
+                    if self.data.time == (config.refresh_time * 60.0) as u16 {
                         self.data = LogPanelData::new(
                             self.data.data.value.clone()
                         )
@@ -456,6 +458,7 @@ pub struct Config {
     temp_sensitivity: f32,
     accel_enabled: bool,
     accel_sensitivity: f32,
+    refresh_time: f32, // seconds
 }
 
 impl Config {
@@ -463,13 +466,15 @@ impl Config {
         temp_enabled: bool, 
         temp_sensitivity: f32, 
         accel_enabled: bool, 
-        accel_sensitivity: f32) -> Self {
+        accel_sensitivity: f32,
+        refresh_time: f32) -> Self {
             
         Self {
             temp_enabled,
             temp_sensitivity,
             accel_enabled,
             accel_sensitivity,
+            refresh_time
         }
     }
 }
@@ -488,13 +493,32 @@ impl Default for ConfigPanel {
                 ConfigPanel::req_settings().await
             }),
             config_received: false,
-            config: Config::new(true, 8.0, true, 8.0),
+            config: Config::new(
+                true, 
+                8.0, 
+                true, 
+                8.0,
+                1.0),
         }
     }
 }
 
 impl ConfigPanel {
     fn ui(&mut self, ui: &mut Ui) {
+        egui::TopBottomPanel::top("general_panel")
+            .show_inside(ui, |ui| {
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    ui.vertical_centered(|ui| {
+                        ui.heading("General");
+                    });
+                    ui.horizontal(|ui| {
+                        ui.add(egui::DragValue::
+                                new(&mut self.config.refresh_time).speed(0.1)
+                                .clamp_range(0..=120));
+                        ui.add(egui::Label::new("Refresh Delay (seconds)"));
+                    });
+                });
+            });
         egui::TopBottomPanel::top("temp_panel")
             .show_inside(ui, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
@@ -505,7 +529,8 @@ impl ConfigPanel {
                     ui.add_enabled_ui(self.config.temp_enabled, |ui| {
                         ui.horizontal(|ui| {
                             ui.add(egui::DragValue::
-                                   new(&mut self.config.temp_sensitivity).speed(0.1));
+                                   new(&mut self.config.temp_sensitivity).speed(0.1)
+                                   .clamp_range(0..=120));
                             ui.add(egui::Label::new("Sensitivity"));
                         });
                     });
@@ -521,7 +546,8 @@ impl ConfigPanel {
                     ui.add_enabled_ui(self.config.accel_enabled, |ui| {
                         ui.horizontal(|ui| {
                             ui.add(egui::DragValue::
-                                   new(&mut self.config.accel_sensitivity).speed(0.1));
+                                   new(&mut self.config.accel_sensitivity).speed(0.1)
+                                   .clamp_range(0..=120));
                             ui.add(egui::Label::new("Sensitivity"));
                         });
                     });

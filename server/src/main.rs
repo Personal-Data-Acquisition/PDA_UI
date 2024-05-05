@@ -19,14 +19,12 @@ async fn files(file: PathBuf) -> Option<NamedFile> {
 }
 
 #[get("/req/settings")]
-async fn req_settings() -> String {
-    let content = fs::read_to_string("settings.json")
-        .expect("Couldn't read settings");
-    content
+async fn req_settings() -> Result<String, std::io::Error> {
+    fs::read_to_string("settings.json")
 }
 
 #[get("/req/data/latest/<param>")]
-async fn req_data_latest(param: &str) -> String {
+async fn req_data_latest(param: &str) -> Result<String, String> {
     let content = match param {
         "acceleration_x" => sql_parsing::latest_acceleration_x().await,
         "acceleration_y" => sql_parsing::latest_acceleration_y().await,
@@ -34,36 +32,41 @@ async fn req_data_latest(param: &str) -> String {
         // todo: more data types
         &_ => Err("invalid data type for req_data_latest".into()),
     };
-    let value = match content {
-        Ok(c) => serde_json::to_string(&c).expect("could not convert data to json"),
-        Err(why) => panic!("invalid content: {}", why),
-    };
-    //print!("{}", value);
-    value
+    match content {
+        Ok(c) => match serde_json::to_string(&c) {
+            Ok(s) => Ok(s),
+            Err(why) => Err(format!("could not deserialize: {}", why)),
+        },
+        Err(why) => Err(format!("invalid content: {}", why)),
+    }
 }
 
 #[get("/req/data/full/<param>")]
-async fn req_data_full(param: &str) -> String {
+async fn req_data_full(param: &str) -> Result<String, String> {
     let content = match param {
         "acceleration" => sql_parsing::full_acceleration().await,
         // todo: more data types
         &_ => Err("invalid data type for req_data_full".into()),
     };
-    let value = match content {
-        Ok(c) => serde_json::to_string(&c).expect("could not convert data to json"),
-        Err(why) => panic!("invalid content: {}", why),
-    };
-    value
+    match content {
+        Ok(c) => match serde_json::to_string(&c) {
+            Ok(s) => Ok(s),
+            Err(why) => Err(format!("could not deserialize: {}", why)),
+        },
+        Err(why) => Err(format!("invalid content: {}", why)),
+    }
 }
 
 #[get("/req/last_points")]
-async fn req_last_points() -> String {
+async fn req_last_points() -> Result<String, String> {
     let content = line_drawing::last_points();
-    let value = match content {
-        Ok(c) => serde_json::to_string(&c).expect("could not convert data to json"),
-        Err(why) => panic!("invalid content: {}", why),
-    };
-    value
+    match content {
+        Ok(c) => match serde_json::to_string(&c) {
+            Ok(s) => Ok(s),
+            Err(why) => Err(format!("could not deserialize: {}", why)),
+        },
+        Err(why) => Err(format!("invalid content: {}", why)),
+    }
 }
 
 #[post("/update", format = "application/json", data = "<value>")]
@@ -73,17 +76,16 @@ async fn update(value: &str) -> Option<&str> {
 }
 
 #[post("/update/settings", format = "application/json", data = "<value>")]
-async fn update_settings(value: &str) -> Option<&str> {
+async fn update_settings(value: &str) -> Result<&str, String> {
     println!("{}", value);
     let mut file = match fs::File::create("settings.json") {
-        Err(why) => panic!("couldn't create settings: {}", why),
+        Err(why) => return Err(format!("couldn't create settings: {why}")),
         Ok(file) => file,
     };
-    match file.write_all(value.as_bytes()) {
-        Err(why) => panic!("couldn't write to settings: {}", why),
-        Ok(_) => println!("successfully wrote to settings"),
-    };
-    Some(value)
+    if let Err(why) = file.write_all(value.as_bytes()) {
+        return Err(format!("couldn't write to settings: {why}"))
+    }
+    Ok(value)
 }
 
 #[launch]
