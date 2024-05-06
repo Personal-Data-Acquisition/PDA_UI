@@ -131,12 +131,18 @@ impl ConfigPanel {
     /// Sends config to sever as JSON
     async fn send_settings_update(config: Config) {
         let client = reqwest_wasm::Client::new();
-        let res = client.post("http://127.0.0.1:8000/update/settings")
-            .json(&serde_json::to_string(&config).expect("couldn't serialize"))
-            .send()
-            .await.expect("no response")
-            .text()
-            .await;
+        let res = match &serde_json::to_string(&config) {
+            Ok(j) => {
+                match client.post("http://127.0.0.1:8000/update/settings").json(j).send().await {
+                    Ok(r) => r.text().await,
+                    Err(e) => Err(e),
+                }
+            },
+            Err(e) => {
+                debug!("couldn't serialize: {:?}", e);
+                return;
+            },
+        };
         debug!("res: {:?}", res);
     }
     

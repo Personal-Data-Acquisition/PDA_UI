@@ -180,12 +180,10 @@ impl Default for Panel {
 
 pub async fn send_update(body: &HashMap<&str, &str>, url: &str) {
     let client = reqwest_wasm::Client::new();
-    let res = client.post(url)
-        .json(body)
-        .send()
-        .await.expect("no response")
-        .text()
-        .await;
+    let res = match client.post(url).json(body).send().await {
+            Ok(r) => r.text().await,
+            Err(e) => Err(e)
+        };
     debug!("res: {:?}", res);
 }
 
