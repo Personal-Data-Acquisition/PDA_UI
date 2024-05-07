@@ -1,9 +1,19 @@
 use sqlx::{sqlite::{ SqlitePool, SqliteRow}, Error, Row};
 
-const DB_URL: &str = "sqlite://sensor_data.db";
+use lazy_static::lazy_static;
+use dirs;
+
+lazy_static! {
+    static ref SQLITE_DATABASE_PATH: String = {
+        // Get the home directory path
+        let mut path = dirs::home_dir().expect("Failed to get home directory");
+        path.push("sensor_data.db");
+        path.to_string_lossy().into_owned()
+    };
+}
 
 pub async fn full_acceleration() -> Result<Vec<[String; 5]>, Box<dyn std::error::Error>> {
-    let pool = SqlitePool::connect(DB_URL).await?;
+    let pool = SqlitePool::connect(SQLITE_DATABASE_PATH.as_str()).await?;
     let qry: &str = "SELECT id, timestamp, accelerometer_x, accelerometer_y, accelerometer_z FROM accelerometer_data WHERE id IN (SELECT id FROM accelerometer_data ORDER BY id DESC LIMIT 1000)";
     let acceleration = sqlx::query(qry).fetch_all(&pool).await?;
 
@@ -26,7 +36,7 @@ pub async fn full_acceleration() -> Result<Vec<[String; 5]>, Box<dyn std::error:
 }
 
 pub async fn latest_acceleration_x() -> Result<Vec<[f64; 2]>, Box<dyn std::error::Error>> {
-    let pool = SqlitePool::connect(DB_URL).await?;
+    let pool = SqlitePool::connect(SQLITE_DATABASE_PATH.as_str()).await?;
     let qry: &str = "SELECT accelerometer_x FROM accelerometer_data WHERE id IN (SELECT id FROM accelerometer_data ORDER BY id DESC LIMIT 50)";
     let acceleration_x = sqlx::query(qry).fetch_all(&pool).await?;
 
@@ -42,7 +52,7 @@ pub async fn latest_acceleration_x() -> Result<Vec<[f64; 2]>, Box<dyn std::error
 }
 
 pub async fn latest_acceleration_y() -> Result<Vec<[f64; 2]>, Box<dyn std::error::Error>> {
-    let pool = SqlitePool::connect(DB_URL).await?;
+    let pool = SqlitePool::connect(SQLITE_DATABASE_PATH.as_str()).await?;
     let qry: &str = "SELECT accelerometer_y FROM accelerometer_data WHERE id IN (SELECT id FROM accelerometer_data ORDER BY id DESC LIMIT 50)";
     let acceleration_y = sqlx::query(qry).fetch_all(&pool).await?;
 
@@ -58,7 +68,7 @@ pub async fn latest_acceleration_y() -> Result<Vec<[f64; 2]>, Box<dyn std::error
 }
 
 pub async fn latest_acceleration_z() -> Result<Vec<[f64; 2]>, Box<dyn std::error::Error>> {
-    let pool = SqlitePool::connect(DB_URL).await?;
+    let pool = SqlitePool::connect(SQLITE_DATABASE_PATH.as_str()).await?;
     let qry: &str = "SELECT accelerometer_z FROM accelerometer_data WHERE id IN (SELECT id FROM accelerometer_data ORDER BY id DESC LIMIT 50)";
     let acceleration_z = sqlx::query(qry).fetch_all(&pool).await?;
 
