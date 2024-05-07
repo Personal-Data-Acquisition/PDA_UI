@@ -12,6 +12,7 @@ use walkers::{Tiles, Map, MapMemory, Position, TilesManager, HttpOptions};
 use crate::line_drawing::GpsLine;
 
 const TITLE: &str = "Personal Data Acquisition";
+const MAP_HEIGHT: f32 = 600.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Provider {
@@ -48,6 +49,8 @@ pub struct MyApp {
     map_memory: MapMemory,
     providers: HashMap<Provider, Box<dyn TilesManager + Send>>,
     gps_points: PollableValue<Vec<[f64; 2]>>,
+    scroll_offset: f32,
+    lowest_edge: f32,
 }
 
 impl Default for MyApp {
@@ -66,6 +69,8 @@ impl Default for MyApp {
                     GpsLine::req_points().await
                 })
             ),
+            scroll_offset: 0.0,
+            lowest_edge: 1800.0,
         }
     }
 }
@@ -85,6 +90,8 @@ impl MyApp {
                     GpsLine::req_points().await
                 })
             ),
+            scroll_offset: 0.0,
+            lowest_edge: 1800.0,
         }
     }
 }
@@ -116,7 +123,7 @@ impl eframe::App for MyApp {
 
             match self.open_panel {
                 Panel::Home => {      
-                    ScrollArea::vertical()
+                    let scroll = ScrollArea::vertical()
                         .auto_shrink([false, false])
                         .stick_to_bottom(false)
                         .show(ui, |ui| {
@@ -130,12 +137,20 @@ impl eframe::App for MyApp {
                                 Position::from_lat_lon(44.56203897286608, -123.28196905234289));
 
                             if self.gps_points.poll() {
-                                map = map.with_plugin(GpsLine::new(self.gps_points.value.clone()));
+                                map = map.with_plugin(GpsLine::new(self.gps_points.value.clone(), self.scroll_offset));
                             }
 
-                            ui.add_sized([ui.available_width(), 600.0], map);
-                            zoom(ui, &mut self.map_memory);
+                            let map_corner = ui.cursor().min + Vec2::new( 8.0,MAP_HEIGHT - 40.0);
+                            ui.add_sized([ui.available_width(), MAP_HEIGHT], map);
+                            if map_corner[1] <= self.lowest_edge {
+                                zoom(ui, &mut self.map_memory, map_corner);
+                            }
                         });
+                    
+                    let total_height = scroll.content_size[1] + scroll.inner_rect.min[1];
+                    self.scroll_offset = ((total_height - scroll.inner_rect.max[1]) - scroll.state.offset.y ) / 2.0;
+                    self.lowest_edge = scroll.inner_rect.max[1];
+                    
                 }
                 Panel::Log => {
                     self.log_panel.ui(ui);
@@ -260,13 +275,16 @@ impl HomePanel {
     fn ui(&mut self, ui: &mut Ui) {
         let plot_accel_x = Plot::new("Acceleration X")
             .legend(Legend::default())
-            .height(200.0);
+            .height(200.0)
+            .allow_scroll(false);
         let plot_accel_y = Plot::new("Acceleration Y")
             .legend(Legend::default())
-            .height(200.0);
+            .height(200.0)
+            .allow_scroll(false);
         let plot_accel_z = Plot::new("Acceleration Z")
             .legend(Legend::default())
-            .height(200.0);
+            .height(200.0)
+            .allow_scroll(false);
 
         if self.accel_x.poll() {
             let line = Line::new(PlotPoints::from(self.accel_x.value.clone())).name("Acceleration X");
@@ -583,12 +601,12 @@ impl ConfigPanel {
     }
 }
 
-pub fn zoom(ui: &Ui, map_memory: &mut MapMemory) {
+pub fn zoom(ui: &Ui, map_memory: &mut MapMemory, location: Pos2) {
     Window::new("Map")
         .collapsible(false)
         .resizable(false)
         .title_bar(false)
-        .anchor(Align2::LEFT_BOTTOM, [10., -10.])
+        .fixed_pos(location)
         .show(ui.ctx(), |ui| {
             ui.horizontal(|ui| {
                 if ui.button(RichText::new("➕").heading()).clicked() {
