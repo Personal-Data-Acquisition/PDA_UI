@@ -16,6 +16,8 @@ const HOME_PANEL_KEYS: [&str; 3] = [
     "acceleration_z",
 ];
 
+const MAP_HEIGHT: f32 = 600.0;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Provider {
     OpenStreetMap,
@@ -57,6 +59,8 @@ pub struct HomePanel {
     map_memory: MapMemory,
     providers: HashMap<Provider, Box<dyn TilesManager + Send>>,
     gps_points: PollableValue<Vec<[f64; 2]>>,
+    scroll_offset: f32,
+    lowest_edge: f32,
 }
 
 /// refers to all of the auto-refreshing data on the home panel
@@ -101,11 +105,13 @@ impl HomePanel {
                     GpsLine::req_points().await
                 })
             ),
+            scroll_offset: 0.0,
+            lowest_edge: 1800.0,
         }
     }
 
     pub fn ui(&mut self, ui: &mut Ui, config: &Config) {
-        ScrollArea::vertical()
+        let scroll = ScrollArea::vertical()
         .auto_shrink([false, false])
         .stick_to_bottom(false)
         .show(ui, |ui| {
@@ -118,7 +124,8 @@ impl HomePanel {
                     ready_count += 1;
                     let plot = Plot::new(key)
                         .legend(Legend::default())
-                        .height(200.0);
+                        .height(200.0)
+                        .allow_scroll(false);
                     let line = Line::new(PlotPoints::from(res)).name(key);
                     plot.show(ui, |plot_ui| {
                         plot_ui.line(line);
@@ -173,14 +180,19 @@ impl HomePanel {
                 Position::from_lat_lon(44.56203897286608, -123.28196905234289));
 
             if let Some(res) = self.gps_points.poll() {
-                map = map.with_plugin(GpsLine::new(res));
+                map = map.with_plugin(GpsLine::new(res, self.scroll_offset));
             }
 
-            ui.add_sized([ui.available_width(), 600.0], map);
-            zoom(ui, &mut self.map_memory);
+            let map_corner = ui.cursor().min + Vec2::new( 8.0,MAP_HEIGHT - 40.0);
+            ui.add_sized([ui.available_width(), MAP_HEIGHT], map);
+            if map_corner[1] <= self.lowest_edge {
+                zoom(ui, &mut self.map_memory, map_corner);
+            }
         });
 
-        
+        let total_height = scroll.content_size[1] + scroll.inner_rect.min[1];
+        self.scroll_offset = ((total_height - scroll.inner_rect.max[1]) - scroll.state.offset.y ) / 2.0;
+        self.lowest_edge = scroll.inner_rect.max[1];
     }
 
     /// Requests data of type `Option<Vec<[f64; 2]>>` from the server
@@ -207,12 +219,12 @@ impl HomePanel {
     }
 }
 
-pub fn zoom(ui: &Ui, map_memory: &mut MapMemory) {
+pub fn zoom(ui: &Ui, map_memory: &mut MapMemory, location: Pos2) {
     Window::new("Map")
         .collapsible(false)
         .resizable(false)
         .title_bar(false)
-        .anchor(Align2::LEFT_BOTTOM, [10., -10.])
+        .fixed_pos(location)
         .show(ui.ctx(), |ui| {
             ui.horizontal(|ui| {
                 if ui.button(RichText::new("➕").heading()).clicked() {

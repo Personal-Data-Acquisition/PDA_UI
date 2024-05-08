@@ -5,7 +5,8 @@ use log::debug;
 const NUM_POINTS: usize = 15;
 
 pub struct GpsLine {
-    points: Vec<[f64; 2]>
+    points: Vec<[f64; 2]>,
+    vert_offset: f32,
 }
 
 impl GpsLine {
@@ -31,9 +32,10 @@ impl GpsLine {
         }
     }
 
-    pub fn new(points: Vec<[f64; 2]>) -> Self {
+    pub fn new(points: Vec<[f64; 2]>, vert_offset: f32) -> Self {
         Self {
-            points
+            points,
+            vert_offset
         }
     }
 }
@@ -52,10 +54,12 @@ impl Plugin for GpsLine {
             let current_point = self.points[i];
 
             let mut point = Position::from_lat_lon(prev_point[0], prev_point[1]);
-            let point1 = projector.project(point).to_pos2();
+            let point1 = projector.project(point).to_pos2()
+                                - egui::Vec2::new(0.0, self.vert_offset);
 
             point = Position::from_lat_lon(current_point[0], current_point[1]);
-            let point2 = projector.project(point).to_pos2();
+            let point2 = projector.project(point).to_pos2()
+                                - egui::Vec2::new(0.0, self.vert_offset);
 
             painter.line_segment([point1, point2], stroke);
             prev_point = current_point;
