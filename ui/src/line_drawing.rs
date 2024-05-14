@@ -42,7 +42,7 @@ impl GpsLine {
 
 impl Plugin for GpsLine {
     fn draw(&self,
-        response: &Response,
+        _response: &Response,
         _gesture_handled: bool,
         painter: Painter,
         projector: &Projector,

@@ -12,6 +12,7 @@ lazy_static! {
     };
 }
 
+/// Gets acceleration data and packs it into a vector of arrays of id, time, x, y, z
 pub async fn full_acceleration() -> Result<Vec<[String; 5]>, Box<dyn std::error::Error>> {
     let pool = SqlitePool::connect(SQLITE_DATABASE_PATH.as_str()).await?;
     let qry: &str = "SELECT id, timestamp, accelerometer_x, accelerometer_y, accelerometer_z FROM accelerometer_data WHERE id IN (SELECT id FROM accelerometer_data ORDER BY id DESC LIMIT 1000)";
