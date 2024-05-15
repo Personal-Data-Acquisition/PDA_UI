@@ -58,18 +58,6 @@ async fn req_data_full(param: &str) -> Result<String, String> {
     }
 }
 
-#[get("/req/last_points")]
-async fn req_last_points() -> Result<String, String> {
-    let content = line_drawing::last_points();
-    match content {
-        Ok(c) => match serde_json::to_string(&c) {
-            Ok(s) => Ok(s),
-            Err(why) => Err(format!("could not deserialize: {}", why)),
-        },
-        Err(why) => Err(format!("invalid content: {}", why)),
-    }
-}
-
 #[post("/update", format = "application/json", data = "<value>")]
 async fn update(value: &str) -> Option<&str> {
     println!("{}", value);
