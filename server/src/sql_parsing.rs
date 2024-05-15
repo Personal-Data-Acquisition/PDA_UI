@@ -83,3 +83,18 @@ pub async fn latest_acceleration_z() -> Result<Vec<[f64; 2]>, Box<dyn std::error
 
     Ok(accel)
 }
+
+pub async fn latest_gps_latlon() -> Result<Vec<[f64; 2]>, Box<dyn std::error::Error>> {
+    let pool = SqlitePool::connect(SQLITE_DATABASE_PATH.as_str()).await?;
+    let qry: &str = "SELECT latitude, longitude FROM gps_data WHERE fix_time IN (SELECT fix_time FROM gps_data ORDER BY fix_time DESC LIMIT 50) AND (fix_type != 'Invalid')";
+    let gps_data = sqlx::query(qry).fetch_all(&pool).await?;
+    
+    let mut gps: Vec<[f64; 2]> = vec![];
+    for row in gps_data {
+        let lat: f64 = row.get(0);
+        let lon: f64 = row.get(1);
+        gps.push([lat, lon]);
+    }
+
+    Ok(gps)
+}

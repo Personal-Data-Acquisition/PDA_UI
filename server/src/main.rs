@@ -29,6 +29,7 @@ async fn req_data_latest(param: &str) -> Result<String, String> {
         "acceleration_x" => sql_parsing::latest_acceleration_x().await,
         "acceleration_y" => sql_parsing::latest_acceleration_y().await,
         "acceleration_z" => sql_parsing::latest_acceleration_z().await,
+        "gps_latlon" => sql_parsing::latest_gps_latlon().await,
         // todo: more data types
         &_ => Err("invalid data type for req_data_latest".into()),
     };

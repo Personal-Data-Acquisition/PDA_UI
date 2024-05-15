@@ -12,7 +12,7 @@ pub struct GpsLine {
 impl GpsLine {
     pub async fn req_points() -> Option<Vec<[f64; 2]>> {
         let client = reqwest_wasm::Client::new();
-        let res = match client.get("http://127.0.0.1:8000/req/last_points".to_owned()).send().await {
+        let res = match client.get("http://127.0.0.1:8000/req/data/latest/gps_latlon".to_owned()).send().await {
             Err(why) => {
                 debug!("failed to get: {}", why);
                 return None;
