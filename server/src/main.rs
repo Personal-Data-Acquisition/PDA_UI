@@ -88,5 +88,4 @@ fn rocket() -> _ {
         .mount("/", routes![req_settings])
         .mount("/", routes![req_data_latest])
         .mount("/", routes![req_data_full])
-        .mount("/", routes![req_last_points])
 }
