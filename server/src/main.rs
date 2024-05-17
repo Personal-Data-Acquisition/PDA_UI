@@ -23,21 +23,18 @@ async fn req_settings() -> Result<String, std::io::Error> {
     fs::read_to_string("settings.json")
 }
 
-#[get("/req/data/latest/<param>")]
-async fn req_data_latest(param: &str) -> Result<String, String> {
-    let content = match param {
-        "acceleration_x" => sql_parsing::latest_acceleration_x().await,
-        "acceleration_y" => sql_parsing::latest_acceleration_y().await,
-        "acceleration_z" => sql_parsing::latest_acceleration_z().await,
-        // todo: more data types
-        &_ => Err("invalid data type for req_data_latest".into()),
-    };
+#[get("/req/data/latest/<column>/<table>")]
+async fn req_data_latest(column: &str, table: &str) -> Result<String, String> {
+    let content = sql_parsing::latest_data(column, table).await;
     match content {
         Ok(c) => match serde_json::to_string(&c) {
             Ok(s) => Ok(s),
             Err(why) => Err(format!("could not deserialize: {}", why)),
         },
-        Err(why) => Err(format!("invalid content: {}", why)),
+        Err(why) => {
+            print!("invalid content: {}", why);
+            Err(format!("invalid content: {}", why))
+        },
     }
 }
 

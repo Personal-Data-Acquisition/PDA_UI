@@ -36,50 +36,24 @@ pub async fn full_acceleration() -> Result<Vec<[String; 5]>, Box<dyn std::error:
     Ok(accel)
 }
 
-pub async fn latest_acceleration_x() -> Result<Vec<[f64; 2]>, Box<dyn std::error::Error>> {
+pub async fn latest_data(column: &str, table: &str) -> Result<Vec<[f64; 2]>, Box<dyn std::error::Error>> {
     let pool = SqlitePool::connect(SQLITE_DATABASE_PATH.as_str()).await?;
-    let qry: &str = "SELECT accelerometer_x FROM accelerometer_data WHERE id IN (SELECT id FROM accelerometer_data ORDER BY id DESC LIMIT 50)";
-    let acceleration_x = sqlx::query(qry).fetch_all(&pool).await?;
+    let mut qry: String = "SELECT ".to_owned();
+    qry.push_str(column);
+    qry.push_str(" FROM ");
+    qry.push_str(table);
+    qry.push_str(" WHERE id IN (SELECT id FROM ");
+    qry.push_str(table);
+    qry.push_str(" ORDER BY id DESC LIMIT 50)");
+    let data = sqlx::query(&qry).fetch_all(&pool).await?;
 
-    let mut accel: Vec<[f64; 2]> = vec![];
+    let mut d: Vec<[f64; 2]> = vec![];
     let mut i: f64 = 0.0;
-    for row in acceleration_x {
+    for row in data {
         let val: f64 = row.get(0);
-        accel.push([i, val]);
+        d.push([i, val]);
         i += 1.0;
     }
 
-    Ok(accel)
-}
-
-pub async fn latest_acceleration_y() -> Result<Vec<[f64; 2]>, Box<dyn std::error::Error>> {
-    let pool = SqlitePool::connect(SQLITE_DATABASE_PATH.as_str()).await?;
-    let qry: &str = "SELECT accelerometer_y FROM accelerometer_data WHERE id IN (SELECT id FROM accelerometer_data ORDER BY id DESC LIMIT 50)";
-    let acceleration_y = sqlx::query(qry).fetch_all(&pool).await?;
-
-    let mut accel: Vec<[f64; 2]> = vec![];
-    let mut i: f64 = 0.0;
-    for row in acceleration_y {
-        let val: f64 = row.get(0);
-        accel.push([i, val]);
-        i += 1.0;
-    }
-
-    Ok(accel)
-}
-
-pub async fn latest_acceleration_z() -> Result<Vec<[f64; 2]>, Box<dyn std::error::Error>> {
-    let pool = SqlitePool::connect(SQLITE_DATABASE_PATH.as_str()).await?;
-    let qry: &str = "SELECT accelerometer_z FROM accelerometer_data WHERE id IN (SELECT id FROM accelerometer_data ORDER BY id DESC LIMIT 50)";
-    let acceleration_z = sqlx::query(qry).fetch_all(&pool).await?;
-
-    let mut accel: Vec<[f64; 2]> = vec![];
-    let mut i: f64 = 0.0;
-    for row in acceleration_z {
-        let val: f64 = row.get(0);
-        accel.push([i, val]);
-        i += 1.0;
-    }
-
-    Ok(accel)
+    Ok(d)
 }
