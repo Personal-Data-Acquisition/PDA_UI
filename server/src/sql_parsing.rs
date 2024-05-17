@@ -38,13 +38,7 @@ pub async fn full_acceleration() -> Result<Vec<[String; 5]>, Box<dyn std::error:
 
 pub async fn latest_data(column: &str, table: &str) -> Result<Vec<[f64; 2]>, Box<dyn std::error::Error>> {
     let pool = SqlitePool::connect(SQLITE_DATABASE_PATH.as_str()).await?;
-    let mut qry: String = "SELECT ".to_owned();
-    qry.push_str(column);
-    qry.push_str(" FROM ");
-    qry.push_str(table);
-    qry.push_str(" WHERE id IN (SELECT id FROM ");
-    qry.push_str(table);
-    qry.push_str(" ORDER BY id DESC LIMIT 50)");
+    let qry = format!("SELECT {} FROM {} WHERE id IN (SELECT id FROM {} ORDER BY id DESC LIMIT 50)", column, table, table);
     let data = sqlx::query(&qry).fetch_all(&pool).await?;
 
     let mut d: Vec<[f64; 2]> = vec![];

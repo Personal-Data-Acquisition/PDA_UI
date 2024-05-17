@@ -10,10 +10,11 @@ use crate::{send_update, Config, line_drawing::GpsLine, utils::PollableValue};
 // all of the auto-refreshing data on the home panel
 // displayed from first to last
 // TODO: maybe try something better?
-const HOME_PANEL_KEYS: [(&str, &str); 3] = [
+const HOME_PANEL_KEYS: [(&str, &str); 4] = [
     ("accelerometer_x", "accelerometer_data"),
     ("accelerometer_y", "accelerometer_data"),
     ("accelerometer_z", "accelerometer_data"),
+    ("temperature_celsius", "thermalprobe_data"),
 ];
 
 const MAP_HEIGHT: f32 = 600.0;
@@ -198,10 +199,7 @@ impl HomePanel {
     /// Requests data of type `Option<Vec<[f64; 2]>>` from the server
     async fn req_data_latest(column: &str, table: &str) -> Option<Vec<[f64; 2]>> {
         let client = reqwest_wasm::Client::new();
-        let mut url: String = "http://127.0.0.1:8000/req/data/latest/".to_owned();
-        url.push_str(column);
-        url.push_str("/");
-        url.push_str(table);
+        let url: String = format!("http://127.0.0.1:8000/req/data/latest/{}/{}", column, table);
         let res = match client.get(url).send().await {
             Err(why) => {
                 debug!("failed to get: {}", why);
