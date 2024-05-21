@@ -1,12 +1,14 @@
 #[macro_use] extern crate rocket;
 
 mod sql_parsing;
-mod line_drawing;
 
 use rocket::fs::NamedFile;
 use std::path::{Path, PathBuf};
 use std::fs;
 use std::io::Write;
+
+const GPS_ITEMS: usize = 7;
+const ACCEL_ITEMS: usize = 5;
 
 #[get("/")]
 async fn index() -> Result<NamedFile, std::io::Error> {
@@ -46,6 +48,7 @@ async fn req_data_latest(param: &str) -> Result<String, String> {
 async fn req_data_full(param: &str) -> Result<String, String> {
     let content = match param {
         "acceleration" => sql_parsing::full_acceleration().await,
+        "gps" => sql_parsing::full_gps().await,
         // todo: more data types
         &_ => Err("invalid data type for req_data_full".into()),
     };
