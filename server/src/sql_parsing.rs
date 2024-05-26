@@ -103,9 +103,9 @@ pub async fn latest_acceleration_x() -> Result<Vec<[f64; 2]>, Box<dyn std::error
 
     let mut accel: Vec<[f64; 2]> = vec![];
     let mut i: f64 = 0.0;
-    for row in acceleration_x {
+    for row in data {
         let val: f64 = row.get(0);
-        accel.push([i, val]);
+        d.push([i, val]);
         i += 1.0;
     }
 

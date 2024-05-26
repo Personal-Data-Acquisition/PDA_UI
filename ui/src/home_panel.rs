@@ -7,14 +7,36 @@ use walkers::{Tiles, Map, MapMemory, Position, TilesManager, HttpOptions};
 use log::debug;
 use crate::{send_update, Config, line_drawing::GpsLine, utils::PollableValue};
 
-// all of the auto-refreshing data on the home panel
-// displayed from first to last
-// TODO: maybe try something better?
-const HOME_PANEL_KEYS: [&str; 3] = [
-    "acceleration_x",
-    "acceleration_y",
-    "acceleration_z",
+const GRAPH_COUNT: usize = 4;
+const GRAPHS: [Graph; GRAPH_COUNT] = [
+    Graph {
+        title: "Acceleration X",
+        column: "accelerometer_x",
+        table: "accelerometer_data",
+    },
+    Graph {
+        title: "Acceleration Y",
+        column: "accelerometer_y",
+        table: "accelerometer_data",
+    },
+    Graph {
+        title: "Acceleration Z",
+        column: "accelerometer_z",
+        table: "accelerometer_data",
+    },
+    Graph {
+        title: "Temperature (C)",
+        column: "temperature_celsius",
+        table: "thermalprobe_data",
+    },
 ];
+
+#[derive(Clone)]
+struct Graph {
+    title: &'static str,
+    column: &'static str,
+    table: &'static str,
+}
 
 const MAP_HEIGHT: f32 = 600.0;
 
@@ -62,23 +84,20 @@ pub struct HomePanel {
 /// refers to all of the auto-refreshing data on the home panel
 struct HomePanelData {
     time: u16,
-    pub data: HashMap<String, PollableValue<Vec<[f64; 2]>>>,
+    pub data: [PollableValue<Vec<[f64; 2]>>; GRAPH_COUNT],
 }
 
 impl HomePanelData {
-    fn new(defaults: HashMap<String, Option<Vec<[f64; 2]>>>) -> Self {
-        let mut data: HashMap<String, PollableValue<Vec<[f64; 2]>>> = HashMap::new();
-        for key in HOME_PANEL_KEYS {
-            let default = defaults.get(key).expect("missing key in HomePanelData defaults").clone();
-            data.insert(key.to_string(), PollableValue::new(
-                default,
-                poll_promise::Promise::spawn_local(async move {
-                    HomePanel::req_data_latest(key).await   
-                })  
-            ));
-        }
+    fn new(defaults: [Option<Vec<[f64; 2]>>; GRAPH_COUNT]) -> Self {
         Self {
-            data,
+            data: array_init::array_init(|i| {
+                PollableValue::new(
+                    defaults[i].clone(),
+                    poll_promise::Promise::spawn_local(async move {
+                        HomePanel::req_data_latest(&GRAPHS[i].column, &GRAPHS[i].table).await   
+                    })  
+                )
+            }),
             time: 0,
         }
     }
@@ -86,13 +105,9 @@ impl HomePanelData {
 
 impl HomePanel {
     pub fn new(ctx: Context) -> Self {
-        let mut defaults: HashMap<String, std::option::Option<std::vec::Vec<[f64; 2]>>> = HashMap::new();
-        for key in HOME_PANEL_KEYS {
-            defaults.insert(key.to_string(), None);
-        }
         Self {
             is_recording: false,
-            data: HomePanelData::new(defaults),
+            data: HomePanelData::new(array_init::array_init(|_| { None })),
             map_memory: MapMemory::default(),
             providers: providers(ctx),
             gps_points: PollableValue::new(
@@ -113,16 +128,15 @@ impl HomePanel {
         .show(ui, |ui| {
             let mut ready_count = 0;
             // graphs showing auto-refreshing data
-            // keys should be provided in HOME_PANEL_KEYS
-            for key in HOME_PANEL_KEYS {
-                let val: &mut PollableValue<std::vec::Vec<[f64; 2]>> = self.data.data.get_mut(key).expect("missing key in HomePanelData");
-                if let Some(res) = val.poll() {
+            for i in 0..GRAPH_COUNT {
+                if let Some(res) = self.data.data[i].poll() {
                     ready_count += 1;
-                    let plot = Plot::new(key)
+                    ui.heading(GRAPHS[i].title);
+                    let plot = Plot::new(i)
                         .legend(Legend::default())
                         .height(200.0)
                         .allow_scroll(false);
-                    let line = Line::new(PlotPoints::from(res)).name(key);
+                    let line = Line::new(PlotPoints::from(res)).name(&GRAPHS[i].title);
                     plot.show(ui, |plot_ui| {
                         plot_ui.line(line);
                     });
@@ -131,17 +145,13 @@ impl HomePanel {
             // ui.heading(format!("ready count: {ready_count}"));
             // ui.heading(format!("time: {t}", t=self.data.time));
             // if all have been recieved, count up to refresh_time to refresh
-            if ready_count == HOME_PANEL_KEYS.len() {
+            if ready_count == GRAPH_COUNT {
                 self.data.time += 1;
                 if self.data.time == (config.refresh_time * 60.0) as u16 {
-                    let mut defaults: HashMap<String, std::option::Option<Vec<[f64; 2]>>> = HashMap::new();
-                    for key in HOME_PANEL_KEYS {
-                        let val: &mut PollableValue<Vec<[f64; 2]>> = self.data.data.get_mut(key)
-                            .expect("missing key in HomePanelData");
-                        defaults.insert(key.to_string(), val.poll());
-                    }
                     self.data = HomePanelData::new(
-                        defaults
+                        array_init::array_init(|i| {
+                            self.data.data[i].poll()
+                        })
                     )
                 }
             }
@@ -192,9 +202,10 @@ impl HomePanel {
     }
 
     /// Requests data of type `Option<Vec<[f64; 2]>>` from the server
-    async fn req_data_latest(param: &str) -> Option<Vec<[f64; 2]>> {
+    async fn req_data_latest(column: &str, table: &str) -> Option<Vec<[f64; 2]>> {
         let client = reqwest_wasm::Client::new();
-        let res = match client.get("http://127.0.0.1:8000/req/data/latest/".to_owned() + param).send().await {
+        let url: String = format!("http://127.0.0.1:8000/req/data/latest/{}/{}", column, table);
+        let res = match client.get(url).send().await {
             Err(why) => {
                 debug!("failed to get: {}", why);
                 return None;
@@ -205,7 +216,7 @@ impl HomePanel {
         };
         return match res.json::<Vec<[f64; 2]>>().await {
             Err(why) => {
-                debug!("failed to parse json: {},", why);
+                debug!("failed to parse json: {}", why);
                 None
             },
             Ok(result) => {
