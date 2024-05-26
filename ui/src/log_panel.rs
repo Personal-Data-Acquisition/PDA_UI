@@ -3,16 +3,17 @@ use egui::*;
 use log::debug;
 use crate::utils::PollableValue;
 use crate::Config;
+use std::sync::Mutex;
 
 const MAX_WIDTH: usize = 12;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 enum DataBases {Acceleration, GPS}
-static mut DATA_BASE: DataBases = DataBases::Acceleration;
+static DATA_BASE: Mutex<DataBases> = Mutex::new(DataBases::Acceleration);
+
 struct LogPanelData {
     data: PollableValue<Vec<[String; MAX_WIDTH]>>,   
     time: u16,
-    database: DataBases,
 }
 
 impl LogPanelData {
@@ -24,7 +25,6 @@ impl LogPanelData {
                     LogPanel::req_data_full().await // TEMP, TODO genericize this
                 })),
             time: 0,
-            database: DataBases::Acceleration,
         }
     }
 }
@@ -32,14 +32,12 @@ impl LogPanelData {
 #[wasm_bindgen]
 pub struct LogPanel {
     data: LogPanelData,
-    database: DataBases, 
 }
 
 impl Default for LogPanel {
     fn default() -> Self {
         Self {
             data: LogPanelData::new(None),
-            database: DataBases::Acceleration,
         }
     }
 }
@@ -47,24 +45,29 @@ impl Default for LogPanel {
 impl LogPanel {
     pub fn ui(&mut self, ui: &mut Ui, config: &Config) {
         use egui_extras::{Column, TableBuilder};
-
-        egui::ComboBox::from_label("")
-            .selected_text(format!("{:?}", self.database))
-            .show_ui(ui, |ui| {
-                ui.selectable_value(&mut self.database, DataBases::Acceleration, "Acceleration");
-                ui.selectable_value(&mut self.database, DataBases::GPS, "GPS");
-            }
-        );
-
-        unsafe {
-            DATA_BASE = self.database;
-        }
-
+        
         let mut headers: Vec<String> = vec![];
-        LogPanel::generate_headers(&mut headers, self.database);
+        let changed_base: bool;
+        
+        {
+            let mut data_base = DATA_BASE.lock().unwrap();
+            let old_base = *data_base;
+
+            egui::ComboBox::from_label("")
+                .selected_text(format!("{:?}", *data_base))
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(&mut *data_base, DataBases::Acceleration, "Acceleration");
+                    ui.selectable_value(&mut *data_base, DataBases::GPS, "GPS");
+                }
+            );
+            changed_base = old_base != *data_base;
+            
+            LogPanel::generate_headers(&mut headers, *data_base);
+        }
+        
         let items = headers.len();
 
-        let mut table = TableBuilder::new(ui)
+        let table = TableBuilder::new(ui)
             .striped(true)
             .resizable(true)
             .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
@@ -99,7 +102,7 @@ impl LogPanel {
                     }
                     // update timer
                     self.data.time += 1;
-                    if self.data.time == (config.refresh_time * 60.0) as u16 {
+                    if self.data.time == (config.refresh_time * 60.0) as u16 || changed_base {
                         self.data = LogPanelData::new(
                             self.data.data.value.clone()
                         )
@@ -113,14 +116,13 @@ impl LogPanel {
         let client = reqwest_wasm::Client::new();
 
         let param: &str;
-        unsafe {
-            param = match DATA_BASE {
+        {
+            let data_base = DATA_BASE.lock().unwrap();
+            param = match *data_base {
                 DataBases::Acceleration => "acceleration",
                 DataBases::GPS => "gps"
             };
         }
-        
-        debug!("The param value is {}", param);
 
         let res = match client.get("http://127.0.0.1:8000/req/data/full/".to_owned() + param).send().await {
             Err(why) => {

@@ -21,10 +21,6 @@ const MAP_HEIGHT: f32 = 600.0;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Provider {
     OpenStreetMap,
-    Geoportal,
-    MapboxStreets,
-    MapboxSatellite,
-    LocalTiles,
 }
 
 fn providers(egui_ctx: Context) -> HashMap<Provider, Box<dyn TilesManager + Send>> {

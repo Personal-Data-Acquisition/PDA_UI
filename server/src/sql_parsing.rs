@@ -33,7 +33,7 @@ pub async fn full_acceleration() -> Result<Vec<[String; MAX_WIDTH]>, Box<dyn std
         let time = row.get(1);
         array[1] = time;
 
-        let mut float: f32 = row.get(2);
+        float = row.get(2);
         let acc_x = float.to_string();
         array[2] = acc_x;
 

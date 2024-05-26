@@ -7,9 +7,6 @@ use std::path::{Path, PathBuf};
 use std::fs;
 use std::io::Write;
 
-const GPS_ITEMS: usize = 7;
-const ACCEL_ITEMS: usize = 5;
-
 #[get("/")]
 async fn index() -> Result<NamedFile, std::io::Error> {
     NamedFile::open("index.html").await
