@@ -1,7 +1,6 @@
 #[macro_use] extern crate rocket;
 
 mod sql_parsing;
-mod line_drawing;
 
 use rocket::fs::NamedFile;
 use std::path::{Path, PathBuf};
@@ -23,21 +22,31 @@ async fn req_settings() -> Result<String, std::io::Error> {
     fs::read_to_string("settings.json")
 }
 
-#[get("/req/data/latest/<param>")]
-async fn req_data_latest(param: &str) -> Result<String, String> {
-    let content = match param {
-        "acceleration_x" => sql_parsing::latest_acceleration_x().await,
-        "acceleration_y" => sql_parsing::latest_acceleration_y().await,
-        "acceleration_z" => sql_parsing::latest_acceleration_z().await,
-        // todo: more data types
-        &_ => Err("invalid data type for req_data_latest".into()),
-    };
+#[get("/req/data/latest/gps")]
+async fn req_data_latest_gps() -> Result<String, String> {
+    let content = sql_parsing::latest_gps_latlon().await;
+
     match content {
         Ok(c) => match serde_json::to_string(&c) {
             Ok(s) => Ok(s),
             Err(why) => Err(format!("could not deserialize: {}", why)),
         },
         Err(why) => Err(format!("invalid content: {}", why)),
+    }
+}
+
+#[get("/req/data/latest/<column>/<table>")]
+async fn req_data_latest(column: &str, table: &str) -> Result<String, String> {
+    let content = sql_parsing::latest_data(column, table).await;
+    match content {
+        Ok(c) => match serde_json::to_string(&c) {
+            Ok(s) => Ok(s),
+            Err(why) => Err(format!("could not deserialize: {}", why)),
+        },
+        Err(why) => {
+            print!("invalid content: {}", why);
+            Err(format!("invalid content: {}", why))
+        },
     }
 }
 
@@ -45,21 +54,11 @@ async fn req_data_latest(param: &str) -> Result<String, String> {
 async fn req_data_full(param: &str) -> Result<String, String> {
     let content = match param {
         "acceleration" => sql_parsing::full_acceleration().await,
+        "gps" => sql_parsing::full_gps().await,
+        "temperature" => sql_parsing::full_temperature().await,
         // todo: more data types
         &_ => Err("invalid data type for req_data_full".into()),
     };
-    match content {
-        Ok(c) => match serde_json::to_string(&c) {
-            Ok(s) => Ok(s),
-            Err(why) => Err(format!("could not deserialize: {}", why)),
-        },
-        Err(why) => Err(format!("invalid content: {}", why)),
-    }
-}
-
-#[get("/req/last_points")]
-async fn req_last_points() -> Result<String, String> {
-    let content = line_drawing::last_points();
     match content {
         Ok(c) => match serde_json::to_string(&c) {
             Ok(s) => Ok(s),
@@ -99,5 +98,5 @@ fn rocket() -> _ {
         .mount("/", routes![req_settings])
         .mount("/", routes![req_data_latest])
         .mount("/", routes![req_data_full])
-        .mount("/", routes![req_last_points])
+        .mount("/", routes![req_data_latest_gps])
 }
