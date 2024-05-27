@@ -1,4 +1,4 @@
-use sqlx::{sqlite::{ SqlitePool, SqliteRow}, Error, Row};
+use sqlx::{sqlite::SqlitePool, Row};
 
 use lazy_static::lazy_static;
 use dirs;
@@ -23,26 +23,20 @@ pub async fn full_acceleration() -> Result<Vec<[String; MAX_WIDTH]>, Box<dyn std
     let mut accel: Vec<[String; MAX_WIDTH]> = Default::default();
     for row in acceleration {
         let mut array: [String; MAX_WIDTH] = Default::default();
-        let mut int = 0;
-        let mut float = 0.0;
 
-        int = row.get(0);
-        let id = int.to_string();
+        let id = row.get::<i32, usize>(0).to_string();
         array[0] = id;
 
-        let time = row.get(1);
+        let time = row.get::<String, usize>(1).to_string();
         array[1] = time;
 
-        float = row.get(2);
-        let acc_x = float.to_string();
+        let acc_x = row.get::<f64, usize>(2).to_string();
         array[2] = acc_x;
 
-        float = row.get(3);
-        let acc_y = float.to_string();
+        let acc_y = row.get::<f64, usize>(3).to_string();
         array[3] = acc_y;
 
-        float = row.get(4);
-        let acc_z = float.to_string();
+        let acc_z = row.get::<f64, usize>(4).to_string();
         array[4] = acc_z;
 
         accel.push(array);
@@ -59,41 +53,59 @@ pub async fn full_gps() -> Result<Vec<[String; MAX_WIDTH]>, Box<dyn std::error::
     let mut gps: Vec<[String; MAX_WIDTH]> = Default::default();
     for row in acceleration {
         let mut array: [String; MAX_WIDTH] = Default::default();
-        let mut float = 0.0;
         
-        let fix_type = row.get(0);
+        let fix_type = row.get::<String, usize>(0);
         array[0] = fix_type;
 
-        let fix_time = row.get(1);
+        let fix_time = row.get::<String, usize>(1);
         array[1] = fix_time;
 
-        let fix_date = row.get(2);
+        let fix_date = row.get::<String, usize>(2);
         array[2] = fix_date;
 
-        float = row.get(3);
-        let latitude = float.to_string();
+        let latitude = row.get::<f64, usize>(3).to_string();
         array[3] = latitude;
 
-        float = row.get(4);
-        let longitude = float.to_string();
+        let longitude = row.get::<f64, usize>(4).to_string();
         array[4] = longitude;
 
-        float = row.get(5);
-        let altitude = float.to_string();
+        let altitude = row.get::<f64, usize>(5).to_string();
         array[5] = altitude;
 
-        float = row.get(6);
-        let speed_over_ground = float.to_string();
+        let speed_over_ground = row.get::<f64, usize>(6).to_string();
         array[6] = speed_over_ground;
 
-        float = row.get(7);
-        let geoid_separation = float.to_string();
+        let geoid_separation = row.get::<f64, usize>(7).to_string();
         array[7] = geoid_separation;
 
         gps.push(array);
     }
 
     Ok(gps)
+}
+
+pub async fn full_temperature() -> Result<Vec<[String; MAX_WIDTH]>, Box<dyn std::error::Error>> {
+    let pool = SqlitePool::connect(SQLITE_DATABASE_PATH.as_str()).await?;
+    let qry: &str = "SELECT * FROM thermalprobe_data WHERE id IN (SELECT id FROM thermalprobe_data ORDER BY id DESC LIMIT 1000)";
+    let temperature = sqlx::query(qry).fetch_all(&pool).await?;
+
+    let mut temp: Vec<[String; MAX_WIDTH]> = Default::default();
+    for row in temperature {
+        let mut array: [String; MAX_WIDTH] = Default::default();
+
+        let id = row.get::<i32, usize>(0).to_string();
+        array[0] = id;
+
+        let timestamp = row.get::<String, usize>(1).to_string();
+        array[1] = timestamp;
+
+        let celsius = row.get::<f64, usize>(2).to_string();
+        array[2] = celsius;
+
+        temp.push(array);
+    }
+
+    Ok(temp)
 }
 
 pub async fn latest_gps_latlon() -> Result<Vec<[f64; 2]>, Box<dyn std::error::Error>> {

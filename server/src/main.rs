@@ -3,7 +3,6 @@
 mod sql_parsing;
 
 use rocket::fs::NamedFile;
-use rocket::response::content;
 use std::path::{Path, PathBuf};
 use std::fs;
 use std::io::Write;
@@ -56,6 +55,7 @@ async fn req_data_full(param: &str) -> Result<String, String> {
     let content = match param {
         "acceleration" => sql_parsing::full_acceleration().await,
         "gps" => sql_parsing::full_gps().await,
+        "temperature" => sql_parsing::full_temperature().await,
         // todo: more data types
         &_ => Err("invalid data type for req_data_full".into()),
     };

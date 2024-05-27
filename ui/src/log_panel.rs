@@ -8,7 +8,7 @@ use std::sync::Mutex;
 const MAX_WIDTH: usize = 12;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
-enum DataBases {Acceleration, GPS}
+enum DataBases {Acceleration, GPS, Temperature}
 static DATA_BASE: Mutex<DataBases> = Mutex::new(DataBases::Acceleration);
 
 struct LogPanelData {
@@ -46,7 +46,7 @@ impl LogPanel {
     pub fn ui(&mut self, ui: &mut Ui, config: &Config) {
         use egui_extras::{Column, TableBuilder};
         
-        let mut headers: Vec<String> = vec![];
+        let headers: Vec<String>;
         let changed_base: bool;
         
         {
@@ -58,11 +58,12 @@ impl LogPanel {
                 .show_ui(ui, |ui| {
                     ui.selectable_value(&mut *data_base, DataBases::Acceleration, "Acceleration");
                     ui.selectable_value(&mut *data_base, DataBases::GPS, "GPS");
+                    ui.selectable_value(&mut *data_base, DataBases::Temperature, "Temperature (C)");
                 }
             );
             changed_base = old_base != *data_base;
             
-            LogPanel::generate_headers(&mut headers, *data_base);
+            headers = LogPanel::generate_headers(*data_base);
         }
         
         let items = headers.len();
@@ -120,7 +121,8 @@ impl LogPanel {
             let data_base = DATA_BASE.lock().unwrap();
             param = match *data_base {
                 DataBases::Acceleration => "acceleration",
-                DataBases::GPS => "gps"
+                DataBases::GPS => "gps",
+                DataBases::Temperature => "temperature",
             };
         }
 
@@ -143,7 +145,9 @@ impl LogPanel {
             }
         }
     }
-    fn generate_headers(headers: &mut Vec<String>, choice: DataBases) {
+    fn generate_headers(choice: DataBases) -> Vec<String> {
+        let mut headers: Vec<String> = vec![];
+
         match choice {
             DataBases::Acceleration => {
                 headers.push("Row".to_string());
@@ -162,6 +166,13 @@ impl LogPanel {
                 headers.push("Ground Speed".to_string());
                 headers.push("Geoid Separation".to_string());
             }
+            DataBases::Temperature => {
+                headers.push("Row".to_string());
+                headers.push("Timestamp".to_string());
+                headers.push("Temperature (C)".to_string());
+            }
         }
+
+        return headers
     }
 }
