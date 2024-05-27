@@ -96,54 +96,6 @@ pub async fn full_gps() -> Result<Vec<[String; MAX_WIDTH]>, Box<dyn std::error::
     Ok(gps)
 }
 
-pub async fn latest_acceleration_x() -> Result<Vec<[f64; 2]>, Box<dyn std::error::Error>> {
-    let pool = SqlitePool::connect(SQLITE_DATABASE_PATH.as_str()).await?;
-    let qry: &str = "SELECT accelerometer_x FROM accelerometer_data WHERE id IN (SELECT id FROM accelerometer_data ORDER BY id DESC LIMIT 50)";
-    let acceleration_x = sqlx::query(qry).fetch_all(&pool).await?;
-
-    let mut accel: Vec<[f64; 2]> = vec![];
-    let mut i: f64 = 0.0;
-    for row in data {
-        let val: f64 = row.get(0);
-        d.push([i, val]);
-        i += 1.0;
-    }
-
-    Ok(accel)
-}
-
-pub async fn latest_acceleration_y() -> Result<Vec<[f64; 2]>, Box<dyn std::error::Error>> {
-    let pool = SqlitePool::connect(SQLITE_DATABASE_PATH.as_str()).await?;
-    let qry: &str = "SELECT accelerometer_y FROM accelerometer_data WHERE id IN (SELECT id FROM accelerometer_data ORDER BY id DESC LIMIT 50)";
-    let acceleration_y = sqlx::query(qry).fetch_all(&pool).await?;
-
-    let mut accel: Vec<[f64; 2]> = vec![];
-    let mut i: f64 = 0.0;
-    for row in acceleration_y {
-        let val: f64 = row.get(0);
-        accel.push([i, val]);
-        i += 1.0;
-    }
-
-    Ok(accel)
-}
-
-pub async fn latest_acceleration_z() -> Result<Vec<[f64; 2]>, Box<dyn std::error::Error>> {
-    let pool = SqlitePool::connect(SQLITE_DATABASE_PATH.as_str()).await?;
-    let qry: &str = "SELECT accelerometer_z FROM accelerometer_data WHERE id IN (SELECT id FROM accelerometer_data ORDER BY id DESC LIMIT 50)";
-    let acceleration_z = sqlx::query(qry).fetch_all(&pool).await?;
-
-    let mut accel: Vec<[f64; 2]> = vec![];
-    let mut i: f64 = 0.0;
-    for row in acceleration_z {
-        let val: f64 = row.get(0);
-        accel.push([i, val]);
-        i += 1.0;
-    }
-
-    Ok(accel)
-}
-
 pub async fn latest_gps_latlon() -> Result<Vec<[f64; 2]>, Box<dyn std::error::Error>> {
     let pool = SqlitePool::connect(SQLITE_DATABASE_PATH.as_str()).await?;
     let qry: &str = "SELECT latitude, longitude FROM gps_data WHERE fix_time IN (SELECT fix_time FROM gps_data ORDER BY fix_time DESC LIMIT 50) AND (fix_type != 'Invalid')";
@@ -157,4 +109,20 @@ pub async fn latest_gps_latlon() -> Result<Vec<[f64; 2]>, Box<dyn std::error::Er
     }
 
     Ok(gps)
+}
+
+pub async fn latest_data(column: &str, table: &str) -> Result<Vec<[f64; 2]>, Box<dyn std::error::Error>> {
+    let pool = SqlitePool::connect(SQLITE_DATABASE_PATH.as_str()).await?;
+    let qry = format!("SELECT {} FROM {} WHERE id IN (SELECT id FROM {} ORDER BY id DESC LIMIT 50)", column, table, table);
+    let data = sqlx::query(&qry).fetch_all(&pool).await?;
+
+    let mut d: Vec<[f64; 2]> = vec![];
+    let mut i: f64 = 0.0;
+    for row in data {
+        let val: f64 = row.get(0);
+        d.push([i, val]);
+        i += 1.0;
+    }
+
+    Ok(d)
 }

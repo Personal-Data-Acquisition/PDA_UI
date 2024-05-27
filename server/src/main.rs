@@ -3,6 +3,7 @@
 mod sql_parsing;
 
 use rocket::fs::NamedFile;
+use rocket::response::content;
 use std::path::{Path, PathBuf};
 use std::fs;
 use std::io::Write;
@@ -20,6 +21,19 @@ async fn files(file: PathBuf) -> Option<NamedFile> {
 #[get("/req/settings")]
 async fn req_settings() -> Result<String, std::io::Error> {
     fs::read_to_string("settings.json")
+}
+
+#[get("/req/data/latest/gps")]
+async fn req_data_latest_gps() -> Result<String, String> {
+    let content = sql_parsing::latest_gps_latlon().await;
+
+    match content {
+        Ok(c) => match serde_json::to_string(&c) {
+            Ok(s) => Ok(s),
+            Err(why) => Err(format!("could not deserialize: {}", why)),
+        },
+        Err(why) => Err(format!("invalid content: {}", why)),
+    }
 }
 
 #[get("/req/data/latest/<column>/<table>")]
@@ -84,4 +98,5 @@ fn rocket() -> _ {
         .mount("/", routes![req_settings])
         .mount("/", routes![req_data_latest])
         .mount("/", routes![req_data_full])
+        .mount("/", routes![req_data_latest_gps])
 }
