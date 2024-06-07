@@ -16,8 +16,10 @@ const TITLE: &str = "Personal Data Acquisition";
 #[wasm_bindgen]
 pub fn main() {
     eframe::WebLogger::init(log::LevelFilter::Debug).ok();
-    let web_options = eframe::WebOptions::default();
-
+    let mut web_options = eframe::WebOptions::default();
+    web_options.follow_system_theme = false;
+    web_options.default_theme = eframe::Theme::Dark;
+    
     spawn_local(async {
         eframe::WebRunner::new()
             .start(
